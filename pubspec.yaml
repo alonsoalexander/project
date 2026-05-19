@@ -1,0 +1,36 @@
+name: imat
+description: iMat - Din digitala matbutik
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management (replaces CartContext / React Context API)
+  provider: ^6.1.2
+  # Navigation (replaces React Router v7)
+  go_router: ^14.2.7
+  # localStorage persistence (replaces window.localStorage)
+  shared_preferences: ^2.3.2
+  # Toast notifications (replaces Sonner)
+  fluttertoast: ^8.2.8
+  # Swedish date formatting
+  intl: ^0.20.2
+  # Icons (replaces Lucide React)
+  material_symbols_icons: ^4.2823.3
+  # Confetti animation (replaces canvas-confetti)
+  confetti: ^0.7.0
+  google_fonts: ^6.2.1
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
