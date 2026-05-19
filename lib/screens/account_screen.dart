@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:imat/model/imat/shopping_item.dart';
+import 'package:imat/model/imat_data_handler.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
-
-// Maps Account.tsx — user profile card + stats card + order history
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = context.watch<CartProvider>();
-    final userData = cartProvider.userData;
-    final orders = cartProvider.orders;
-    final totalSpent = orders.fold(0.0, (s, o) => s + o.total);
+    final imat = context.watch<ImatDataHandler>();
+    final customer = imat.getCustomer();
+    final orders = imat.orders;
+    final totalSpent = orders.fold(0.0, (s, o) => s + o.getTotal());
+    final hasCustomer = customer.firstName.isNotEmpty || customer.email.isNotEmpty;
 
     return Center(
       child: ConstrainedBox(
@@ -26,15 +26,13 @@ class AccountScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Mitt konto',
-                  style: Theme.of(context).textTheme.displayMedium),
+              Text('Mitt konto', style: Theme.of(context).textTheme.displayMedium),
               const SizedBox(height: AppSpacing.xl),
 
-              // ── Top row: Mina uppgifter + Statistik ───────────────────────
+              // ── Top row ───────────────────────────────────────────────────
               LayoutBuilder(builder: (context, constraints) {
                 final twoCol = constraints.maxWidth > 600;
                 final cards = [
-                  // Mina uppgifter
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -44,12 +42,18 @@ class AccountScreen extends StatelessWidget {
                           Text('Mina uppgifter',
                               style: Theme.of(context).textTheme.headlineMedium),
                           const SizedBox(height: AppSpacing.lg),
-                          if (userData != null) ...[
-                            _infoRow(context, 'Namn', userData.name),
-                            _infoRow(context, 'E-post', userData.email),
-                            if (userData.phone.isNotEmpty)
-                              _infoRow(context, 'Telefon', userData.phone),
-                            _infoRow(context, 'Adress', userData.address),
+                          if (hasCustomer) ...[
+                            if (customer.fullName.isNotEmpty)
+                              _infoRow(context, 'Namn', customer.fullName),
+                            if (customer.email.isNotEmpty)
+                              _infoRow(context, 'E-post', customer.email),
+                            if (customer.phoneNumber.isNotEmpty)
+                              _infoRow(context, 'Telefon', customer.phoneNumber),
+                            if (customer.address.isNotEmpty)
+                              _infoRow(context, 'Adress', customer.address),
+                            if (customer.postCode.isNotEmpty || customer.postAddress.isNotEmpty)
+                              _infoRow(context, 'Ort',
+                                  '${customer.postCode} ${customer.postAddress}'.trim()),
                           ] else
                             Text(
                               'Inga uppgifter sparade än',
@@ -62,8 +66,6 @@ class AccountScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  // Statistik
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -75,11 +77,8 @@ class AccountScreen extends StatelessWidget {
                           const SizedBox(height: AppSpacing.lg),
                           _statRow(context, 'Totalt antal köp:', '${orders.length}'),
                           const SizedBox(height: AppSpacing.md),
-                          _statRow(
-                            context,
-                            'Total handlad summa:',
-                            '${totalSpent.toStringAsFixed(0)} kr',
-                          ),
+                          _statRow(context, 'Total handlad summa:',
+                              '${totalSpent.toStringAsFixed(0)} kr'),
                         ],
                       ),
                     ),
@@ -95,18 +94,16 @@ class AccountScreen extends StatelessWidget {
                           Expanded(child: cards[1]),
                         ],
                       )
-                    : Column(
-                        children: [
-                          cards[0],
-                          const SizedBox(height: AppSpacing.lg),
-                          cards[1],
-                        ],
-                      );
+                    : Column(children: [
+                        cards[0],
+                        const SizedBox(height: AppSpacing.lg),
+                        cards[1],
+                      ]);
               }),
 
               const SizedBox(height: AppSpacing.xl),
 
-              // ── Köphistorik ───────────────────────────────────────────────
+              // ── Order history ─────────────────────────────────────────────
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.lg),
@@ -126,8 +123,7 @@ class AccountScreen extends StatelessWidget {
                         )
                       else
                         ...orders.map((order) {
-                          final dateStr = DateFormat('d MMMM yyyy', 'sv_SE')
-                              .format(order.date);
+                          final dateStr = DateFormat('d MMMM yyyy', 'sv_SE').format(order.date);
                           return Container(
                             margin: const EdgeInsets.only(bottom: AppSpacing.lg),
                             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -142,33 +138,25 @@ class AccountScreen extends StatelessWidget {
                                   children: [
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            'Order #${order.id}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                                    fontWeight: FontWeight.w600),
-                                          ),
-                                          Text(
-                                            dateStr,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                    color: AppColors.mutedForeground),
-                                          ),
+                                          Text('Order #${order.orderNumber}',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                                          Text(dateStr,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.copyWith(
+                                                      color: AppColors.mutedForeground)),
                                         ],
                                       ),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.sm,
-                                        vertical: AppSpacing.xs,
-                                      ),
+                                          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                                       decoration: BoxDecoration(
                                         color: AppColors.accent,
                                         borderRadius: AppRadius.small,
@@ -184,27 +172,22 @@ class AccountScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-
-                                const SizedBox(height: AppSpacing.md),
-
-                                // Items preview
-                                Wrap(
-                                  spacing: AppSpacing.sm,
-                                  children: order.items
-                                      .take(4)
-                                      .map((item) => Text(
-                                            item.product.image,
-                                            style: const TextStyle(fontSize: 22),
-                                          ))
-                                      .toList(),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  order.items.map((i) => i.product.name).take(4).join(', ') +
+                                      (order.items.length > 4 ? '...' : ''),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: AppColors.mutedForeground),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-
                                 const SizedBox(height: AppSpacing.md),
-
                                 Row(
                                   children: [
                                     Text(
-                                      '${order.total.toStringAsFixed(0)} kr',
+                                      '${order.getTotal().toStringAsFixed(0)} kr',
                                       style: Theme.of(context)
                                           .textTheme
                                           .headlineMedium
@@ -213,30 +196,22 @@ class AccountScreen extends StatelessWidget {
                                     const Spacer(),
                                     OutlinedButton.icon(
                                       onPressed: () {
-                                        final cartProv = context.read<CartProvider>();
+                                        final cartImat = context.read<ImatDataHandler>();
                                         for (final item in order.items) {
-                                          for (int i = 0; i < item.quantity; i++) {
-                                            cartProv.addToCart(
-                                              item.product,
-                                              isOrganic: item.isOrganic,
-                                            );
-                                          }
+                                          cartImat.shoppingCartAdd(
+                                            ShoppingItem(item.product, amount: item.amount),
+                                          );
                                         }
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
-                                            content: Text(
-                                              'Varorna har lagts till i kundvagnen',
-                                            ),
+                                            content: Text('Varorna har lagts till i varukorgen'),
                                             backgroundColor: AppColors.primary,
                                             behavior: SnackBarBehavior.floating,
                                           ),
                                         );
                                         context.go('/products');
                                       },
-                                      icon: const Icon(
-                                          Icons.shopping_cart_outlined,
-                                          size: 16),
+                                      icon: const Icon(Icons.shopping_cart_outlined, size: 16),
                                       label: const Text('Beställ igen'),
                                     ),
                                   ],
@@ -286,20 +261,16 @@ Widget _statRow(BuildContext context, String label, String value) => Row(
                 ?.copyWith(color: AppColors.mutedForeground)),
         Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
           decoration: BoxDecoration(
             color: AppColors.muted,
             borderRadius: AppRadius.extraLarge,
           ),
-          child: Text(
-            value,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
+          child: Text(value,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
         ),
       ],
     );

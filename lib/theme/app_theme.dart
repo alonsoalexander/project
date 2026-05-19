@@ -31,7 +31,12 @@ class AppColors {
   static const Color destructive = Color(0xFFD4183D);
   // Input background: #ffffff
   static const Color inputBackground = Color(0xFFFFFFFF);
+  // Om du inte har dessa definierade:
+  static const primaryDark = Color(0xFF0057B8);   // mörkare version av primary
 
+  static const surfaceDark  = Color(0xFFB0B0B0);   // mörkare version av surface
+
+  static const textPrimary  = Color.fromARGB(255, 0, 0, 0);
   // Convenience shades used for cards / surfaces
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceVariant = Color(0xFFF0F0EA);
@@ -63,7 +68,7 @@ class AppTextStyles {
       ),
       // h3 → displaySmall (~text-lg, 20px, weight 600)
       displaySmall: TextStyle(
-        fontSize: 20,
+        fontSize: 40,
         fontWeight: FontWeight.w600,
         color: AppColors.foreground,
         height: 1.3,

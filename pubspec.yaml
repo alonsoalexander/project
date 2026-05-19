@@ -22,7 +22,7 @@ dependencies:
   # Icons (replaces Lucide React)
   material_symbols_icons: ^4.2823.3
   # Confetti animation (replaces canvas-confetti)
-  confetti: ^0.7.0
+  http: ^1.2.2
   flutter_localizations:
     sdk: flutter
 
@@ -33,3 +33,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/

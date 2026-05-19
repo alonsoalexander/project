@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/cart_provider.dart';
+import '../../model/imat_data_handler.dart';
 import '../../theme/app_theme.dart';
 
 // Maps the sticky header in Root.tsx:
 // Logo | Search bar | Nav links (Startsida, Handla, Kontakt, Mitt konto) | Kassa button with cart badge
+
+const _navItems = [
+  (label: 'Startsida', path: '/'),
+  (label: 'Handla', path: '/products'),
+  (label: 'Kontakt', path: '/contact'),
+  (label: 'Mitt konto', path: '/account'),
+];
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController searchController;
@@ -19,15 +26,15 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(500);
 
   @override
   Widget build(BuildContext context) {
-    final cart = context.watch<CartProvider>();
+    final cart = context.watch<ImatDataHandler>();
     final location = GoRouterState.of(context).uri.path;
 
     return Container(
-      height: 200,
+      height: 100,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(
@@ -98,29 +105,37 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
 
+
               const SizedBox(width: AppSpacing.lg),
 
               // ── Nav links ─────────────────────────────────────────────────
-              _NavLink(
-                label: 'Startsida',
-                path: '/',
-                active: location == '/',
-              ),
-              _NavLink(
-                label: 'Handla',
-                path: '/products',
-                active: location == '/products',
-              ),
-              _NavLink(
-                label: 'Kontakt',
-                path: '/contact',
-                active: location == '/contact',
-              ),
-              _NavLink(
-                label: 'Mitt konto',
-                path: '/account',
-                active: location == '/account',
-              ),
+              ..._navItems.map((item) => _NavLink(
+                label: item.label,
+                path: item.path,
+                active: location == item.path,
+              )),
+              
+              // ── Nav links ─────────────────────────────────────────────────
+              // _NavLink(
+              //   label: 'Startsida',
+              //   path: '/',
+              //   active: location == '/',
+              // ),
+              // _NavLink(
+              //   label: 'Handla',
+              //   path: '/products',
+              //   active: location == '/products',
+              // ),
+              // _NavLink(
+              //   label: 'Kontakt',
+              //   path: '/contact',
+              //   active: location == '/contact',
+              // ),
+              // _NavLink(
+              //   label: 'Mitt konto',
+              //   path: '/account',
+              //   active: location == '/account',
+              // ),
 
               const SizedBox(width: AppSpacing.sm),
 

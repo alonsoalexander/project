@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:imat/model/imat_data_handler.dart';
 import 'package:provider/provider.dart';
 
-import 'providers/cart_provider.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Hydrate cart from shared_preferences (mirrors CartContext useEffect on mount)
-  final cart = CartProvider();
-  await cart.init();
-
+void main() {
   runApp(
-    ChangeNotifierProvider.value(
-      value: cart,
+    ChangeNotifierProvider(
+      create: (_) => ImatDataHandler(),
       child: const IMatApp(),
     ),
   );
@@ -31,7 +25,6 @@ class IMatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: appRouter,
-      // Swedish locale for date formatting (matches toLocaleDateString("sv-SE"))
       locale: const Locale('sv', 'SE'),
       supportedLocales: const [
         Locale('sv', 'SE'),

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:imat/config/category_config.dart';
+import 'package:imat/model/imat/product.dart';
+import 'package:imat/model/imat/shopping_item.dart';
+import 'package:imat/model/imat_data_handler.dart';
+import 'package:imat/model/internet_handler.dart';
 import 'package:provider/provider.dart';
 
-import '../data/products_data.dart';
-import '../models/product.dart';
-import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
 
-// Maps Products.tsx:
-// Left sidebar: category filter
-// Main: product grid with search filter
-// Click card → modal bottom sheet (popover) with quantity + organic/regular choice
+// Maps Products.tsx with API-backed products and real images.
+// Categories configurable in lib/config/category_config.dart.
 
 class ProductsScreen extends StatefulWidget {
   final String? initialSearch;
@@ -21,15 +21,14 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  String _selectedCategory = 'Alla';
+  // null = "Alla" (inga filter)
+  ProductCategory? _selectedCategory;
   late String _searchQuery;
 
   @override
   void initState() {
     super.initState();
     _searchQuery = widget.initialSearch ?? '';
-    // Mirror React: if search is present, reset category to "Alla"
-    if (_searchQuery.isNotEmpty) _selectedCategory = 'Alla';
   }
 
   @override
@@ -38,40 +37,61 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (widget.initialSearch != old.initialSearch) {
       setState(() {
         _searchQuery = widget.initialSearch ?? '';
-        if (_searchQuery.isNotEmpty) _selectedCategory = 'Alla';
+        if (_searchQuery.isNotEmpty) _selectedCategory = null;
       });
     }
   }
 
-  List<Product> get _filtered => products.where((p) {
-        final matchCat =
-            _selectedCategory == 'Alla' || p.category == _selectedCategory;
-        final matchSearch =
-            p.name.toLowerCase().contains(_searchQuery.toLowerCase());
-        return matchCat && matchSearch;
-      }).toList();
+  List<Product> _filter(List<Product> all) {
+    return all.where((p) {
+      final catOk = _selectedCategory == null || p.category == _selectedCategory;
+      final searchOk =
+          _searchQuery.isEmpty || p.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      return catOk && searchOk;
+    }).toList();
+  }
 
-  void _openProductModal(Product product) {
+  void _openModal(Product product) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ProductPopover(product: product),
+      builder: (_) => _ProductModal(product: product),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
+    final imat = context.watch<ImatDataHandler>();
+
+    if (imat.isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: AppSpacing.lg),
+            Text('Laddar produkter...'),
+          ],
+        ),
+      );
+    }
+
+    final filtered = _filter(imat.selectProducts);
+
+    // Only show categories that actually have products in the current assortment
+    final availableCategories = kShownCategories
+        .where((cat) => imat.products.any((p) => p.category == cat))
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Left category sidebar ─────────────────────────────────────────
+          // ── Category sidebar ──────────────────────────────────────────────
           SizedBox(
-            width: 180,
+            width: 190,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -83,23 +103,49 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                ...categories.map((cat) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: _selectedCategory == cat
-                            ? ElevatedButton(
-                                onPressed: () =>
-                                    setState(() => _selectedCategory = cat),
-                                child: Text(cat),
-                              )
-                            : OutlinedButton(
-                                onPressed: () =>
-                                    setState(() => _selectedCategory = cat),
-                                child: Text(cat),
+
+                // "Alla" button
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _selectedCategory == null
+                        ? ElevatedButton(
+                            onPressed: () => setState(() => _selectedCategory = null),
+                            child: const Text('Alla'),
+                          )
+                        : OutlinedButton(
+                            onPressed: () => setState(() => _selectedCategory = null),
+                            child: const Text('Alla'),
+                          ),
+                  ),
+                ),
+
+                // Category buttons — edit kShownCategories in category_config.dart
+                ...availableCategories.map((cat) {
+                  final active = _selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: active
+                          ? ElevatedButton(
+                              onPressed: () => setState(() => _selectedCategory = cat),
+                              child: Text(categoryLabel(cat)),
+                            )
+                          : OutlinedButton(
+                              onPressed: () => setState(() {
+                                _selectedCategory = cat;
+                                _searchQuery = '';
+                              }),
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
                               ),
-                      ),
-                    )),
+                              child: Text(categoryLabel(cat)),
+                            ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
@@ -111,14 +157,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Search info
                 if (_searchQuery.isNotEmpty) ...[
                   Text.rich(
                     TextSpan(
                       text: 'Visar resultat för: ',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.mutedForeground,
-                          ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.mutedForeground),
                       children: [
                         TextSpan(
                           text: '"$_searchQuery"',
@@ -133,7 +179,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   const SizedBox(height: AppSpacing.md),
                 ],
 
-                // Grid
                 LayoutBuilder(builder: (context, constraints) {
                   final cols = constraints.maxWidth > 700
                       ? 4
@@ -152,15 +197,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) => _ProductCard(
                       product: filtered[index],
-                      onTap: () => _openProductModal(filtered[index]),
+                      imat: imat,
+                      onTap: () => _openModal(filtered[index]),
                     ),
                   );
                 }),
 
                 if (filtered.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xxxl),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xxxl),
+                    child: Center(
                       child: Text(
                         'Inga produkter hittades.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -182,12 +228,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
 class _ProductCard extends StatelessWidget {
   final Product product;
+  final ImatDataHandler imat;
   final VoidCallback onTap;
 
-  const _ProductCard({required this.product, required this.onTap});
+  const _ProductCard({
+    required this.product,
+    required this.imat,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final img = InternetHandler.cachedImage(product.productId);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -195,52 +248,83 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Product image
             Expanded(
+              flex: 3,
+              child: SizedBox(
+                width: double.infinity,
+                child: img ??
+                    Container(
+                      color: AppColors.accent,
+                      child: Image.asset(
+                        'assets/images/placeholder.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+              ),
+            ),
+
+            // Info
+            Expanded(
+              flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Text(product.image,
-                          style: const TextStyle(fontSize: 52)),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
                     Text(
                       product.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'fr. ${product.price.toStringAsFixed(0)} kr/${product.unit}',
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${product.price.toStringAsFixed(product.price.truncateToDouble() == product.price ? 0 : 2)} kr/${product.unit}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
+                    if (product.isEcological)
+                      Container(
+                        margin: const EdgeInsets.only(top: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          'EKO',
+                          style: TextStyle(
+                            color: AppColors.primaryForeground,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
 
-            // Footer button
+            // Add button
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, 0, AppSpacing.md, AppSpacing.md,
-              ),
+                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: onTap,
-                  icon: const Icon(Icons.add, size: 16),
+                  icon: const Icon(Icons.add, size: 15),
                   label: const Text('Välj'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    textStyle:
-                        const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -252,33 +336,29 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-// ─── Product Popover (Bottom Sheet) ──────────────────────────────────────────
-// Maps the overlay popover in Products.tsx — quantity picker + organic/regular
+// ─── Product Modal (Bottom Sheet) ─────────────────────────────────────────────
 
-class _ProductPopover extends StatefulWidget {
+class _ProductModal extends StatefulWidget {
   final Product product;
 
-  const _ProductPopover({required this.product});
+  const _ProductModal({required this.product});
 
   @override
-  State<_ProductPopover> createState() => _ProductPopoverState();
+  State<_ProductModal> createState() => _ProductModalState();
 }
 
-class _ProductPopoverState extends State<_ProductPopover> {
+class _ProductModalState extends State<_ProductModal> {
   int _quantity = 1;
 
-  void _addToCart(bool isOrganic) {
-    final cart = context.read<CartProvider>();
-    for (int i = 0; i < _quantity; i++) {
-      cart.addToCart(widget.product, isOrganic: isOrganic);
-    }
+  void _addToCart() {
+    final imat = context.read<ImatDataHandler>();
+    imat.shoppingCartAdd(
+      ShoppingItem(widget.product, amount: _quantity.toDouble()),
+    );
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '${widget.product.name} tillagd i varukorgen!',
-          style: const TextStyle(color: AppColors.primaryForeground),
-        ),
+        content: Text('${widget.product.name} tillagd i varukorgen!'),
         backgroundColor: AppColors.primary,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
@@ -290,6 +370,8 @@ class _ProductPopoverState extends State<_ProductPopover> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    final detail = context.read<ImatDataHandler>().getDetail(product);
+    final img = InternetHandler.cachedImage(product.productId, fit: BoxFit.contain);
 
     return Container(
       decoration: const BoxDecoration(
@@ -302,178 +384,138 @@ class _ProductPopoverState extends State<_ProductPopover> {
         AppSpacing.xl,
         AppSpacing.xl + MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
 
-          // Emoji + name
-          Text(product.image, style: const TextStyle(fontSize: 60)),
-          const SizedBox(height: AppSpacing.md),
-          Text(product.name,
-              style: Theme.of(context).textTheme.displaySmall),
-          Text(
-            product.category,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.mutedForeground,
-                ),
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // Quantity picker
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _QtyBtn(
-                icon: Icons.remove,
-                onTap: () =>
-                    setState(() => _quantity = (_quantity - 1).clamp(1, 99)),
+            // Image
+            ClipRRect(
+              borderRadius: AppRadius.large,
+              child: SizedBox(
+                height: 140,
+                child: img ??
+                    Image.asset('assets/images/placeholder.png',
+                        height: 140, fit: BoxFit.contain),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Text(
-                  '$_quantity',
-                  style: Theme.of(context)
-                      .textTheme
-                      .displaySmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Name + category + eco badge
+            Text(product.name, style: Theme.of(context).textTheme.displaySmall),
+            const SizedBox(height: 4),
+            Text(
+              categoryLabel(product.category),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.mutedForeground),
+            ),
+            if (product.isEcological) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: AppRadius.extraLarge,
                 ),
-              ),
-              _QtyBtn(
-                icon: Icons.add,
-                onTap: () => setState(() => _quantity++),
+                child: const Text(
+                  'EKOLOGISK',
+                  style: TextStyle(
+                    color: AppColors.primaryForeground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
-          ),
 
-          const SizedBox(height: AppSpacing.xl),
+            // Detail info (brand, origin)
+            if (detail != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              if (detail.brand.isNotEmpty)
+                Text(detail.brand,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.mutedForeground)),
+              if (detail.origin.isNotEmpty)
+                Text('Ursprung: ${detail.origin}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: AppColors.mutedForeground)),
+            ],
 
-          // Organic option
-          if (product.hasOrganic)
-            _ChoiceButton(
-              onTap: () => _addToCart(true),
-              borderColor: AppColors.primary,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text('Ekologisk',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                )),
-                            const SizedBox(width: AppSpacing.sm),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'EKO',
-                                style: TextStyle(
-                                  color: AppColors.primaryForeground,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Utan kemiska bekämpningsmedel',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
+            const SizedBox(height: AppSpacing.xl),
+
+            // Price
+            Text(
+              '${product.price.toStringAsFixed(product.price.truncateToDouble() == product.price ? 0 : 2)} kr/${product.unit}',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppColors.primary,
+                    fontSize: 20,
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '${product.organicPrice?.toStringAsFixed(0)} kr/${product.unit}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      if (_quantity > 1)
-                        Text(
-                          'Totalt: ${((product.organicPrice ?? 0) * _quantity).toStringAsFixed(0)} kr',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
             ),
 
-          const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xl),
 
-          // Regular option
-          _ChoiceButton(
-            onTap: () => _addToCart(false),
-            borderColor: AppColors.border,
-            child: Row(
+            // Quantity picker
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Konventionell',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          )),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Standardodlad vara',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                _QtyBtn(
+                  icon: Icons.remove,
+                  onTap: () => setState(() => _quantity = (_quantity - 1).clamp(1, 99)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  child: Text(
+                    '$_quantity',
+                    style: Theme.of(context)
+                        .textTheme
+                        .displaySmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${product.price.toStringAsFixed(0)} kr/${product.unit}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    if (_quantity > 1)
-                      Text(
-                        'Totalt: ${(product.price * _quantity).toStringAsFixed(0)} kr',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                  ],
+                _QtyBtn(
+                  icon: Icons.add,
+                  onTap: () => setState(() => _quantity++),
                 ),
               ],
             ),
-          ),
 
-          const SizedBox(height: AppSpacing.lg),
-        ],
+            const SizedBox(height: AppSpacing.xl),
+
+            // Total + add button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _addToCart,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                ),
+                child: Text(
+                  _quantity > 1
+                      ? 'Lägg till $_quantity st  ·  ${(product.price * _quantity).toStringAsFixed(2)} kr'
+                      : 'Lägg till i varukorgen',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
       ),
     );
   }
@@ -490,39 +532,11 @@ class _QtyBtn extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(40, 40),
+        minimumSize: const Size(44, 44),
         padding: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.medium),
       ),
-      child: Icon(icon, size: 18),
-    );
-  }
-}
-
-class _ChoiceButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final Color borderColor;
-  final Widget child;
-
-  const _ChoiceButton({
-    required this.onTap,
-    required this.borderColor,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor, width: 2),
-          borderRadius: AppRadius.large,
-        ),
-        child: child,
-      ),
+      child: Icon(icon, size: 20),
     );
   }
 }

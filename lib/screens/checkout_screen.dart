@@ -1,17 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:imat/model/imat/customer.dart';
+import 'package:imat/model/imat_data_handler.dart';
 import 'package:provider/provider.dart';
 
-import '../models/user_data.dart';
-import '../providers/cart_provider.dart';
 import '../theme/app_theme.dart';
-
-// Maps Checkout.tsx — 5-step progressive form
-// Step 1: Leveransadress
-// Step 2: Födelsedatum
-// Step 3: Skapa konto (namn, email, lösenord)
-// Step 4: Bekräfta (review + submit)
-// Step 5: Bekräftelse (order success)
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -22,46 +15,50 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _currentStep = 1;
+  bool _orderPlaced = false;
 
   final _addressCtrl = TextEditingController();
+  final _postCodeCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
   final _birthdateCtrl = TextEditingController();
-  final _nameCtrl = TextEditingController();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    final userData = context.read<CartProvider>().userData;
-    if (userData != null) {
-      _nameCtrl.text = userData.name;
-      _emailCtrl.text = userData.email;
-      _addressCtrl.text = userData.address;
-    }
+    final c = context.read<ImatDataHandler>().getCustomer();
+    _firstNameCtrl.text = c.firstName;
+    _lastNameCtrl.text = c.lastName;
+    _emailCtrl.text = c.email;
+    _phoneCtrl.text = c.phoneNumber;
+    _addressCtrl.text = c.address;
+    _postCodeCtrl.text = c.postCode;
+    _cityCtrl.text = c.postAddress;
   }
 
   @override
   void dispose() {
-    _addressCtrl.dispose();
-    _birthdateCtrl.dispose();
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
+    for (final c in [
+      _addressCtrl, _postCodeCtrl, _cityCtrl, _birthdateCtrl,
+      _firstNameCtrl, _lastNameCtrl, _emailCtrl, _phoneCtrl,
+    ]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppColors.destructive,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.medium),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: AppColors.destructive,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
-  void _step1Continue() {
+  void _step1() {
     if (_addressCtrl.text.trim().isEmpty) {
       _showError('Vänligen fyll i leveransadress');
       return;
@@ -69,7 +66,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _currentStep = 2);
   }
 
-  void _step2Continue() {
+  void _step2() {
     if (_birthdateCtrl.text.trim().isEmpty) {
       _showError('Vänligen fyll i födelsedatum');
       return;
@@ -77,44 +74,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _currentStep = 3);
   }
 
-  void _step3Continue() {
-    if (_nameCtrl.text.trim().isEmpty ||
-        _emailCtrl.text.trim().isEmpty ||
-        _passwordCtrl.text.trim().isEmpty) {
-      _showError('Vänligen fyll i alla fält');
+  void _step3() {
+    if (_firstNameCtrl.text.trim().isEmpty || _lastNameCtrl.text.trim().isEmpty) {
+      _showError('Vänligen fyll i namn');
       return;
     }
     setState(() => _currentStep = 4);
   }
 
-  Future<void> _step4Continue() async {
-    final userData = UserData(
-      name: _nameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-      phone: '',
-      address: _addressCtrl.text.trim(),
-      city: '',
-      postalCode: '',
-      paymentMethod: 'card',
-    );
-    await context.read<CartProvider>().createOrder(userData);
+  Future<void> _step4() async {
+    final imat = context.read<ImatDataHandler>();
+    imat.setCustomer(Customer(
+      _firstNameCtrl.text.trim(),
+      _lastNameCtrl.text.trim(),
+      _phoneCtrl.text.trim(),
+      '',
+      _emailCtrl.text.trim(),
+      _addressCtrl.text.trim(),
+      _postCodeCtrl.text.trim(),
+      _cityCtrl.text.trim(),
+    ));
+    await imat.placeOrder();
     if (!mounted) return;
-    setState(() => _currentStep = 5);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Beställning genomförd! 🎉'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: AppRadius.medium),
-      ),
-    );
+    setState(() {
+      _currentStep = 5;
+      _orderPlaced = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = context.watch<CartProvider>();
+    final imat = context.watch<ImatDataHandler>();
+    final items = imat.cartItems;
 
-    if (cartProvider.cart.isEmpty && _currentStep != 5) {
+    if (items.isEmpty && !_orderPlaced) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xxxl),
@@ -123,10 +116,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               const Text('🛒', style: TextStyle(fontSize: 64)),
               const SizedBox(height: AppSpacing.lg),
-              Text(
-                'Din kundvagn är tom',
-                style: Theme.of(context).textTheme.displaySmall,
-              ),
+              Text('Din kundvagn är tom',
+                  style: Theme.of(context).textTheme.displaySmall),
               const SizedBox(height: AppSpacing.lg),
               ElevatedButton(
                 onPressed: () => context.go('/products'),
@@ -146,145 +137,180 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Kassa',
-                  style: Theme.of(context).textTheme.displayMedium),
+              Text('Kassa', style: Theme.of(context).textTheme.displayMedium),
               const SizedBox(height: AppSpacing.xl),
 
-              // Steps
-              _CheckoutStep(
-                stepNumber: 1,
+              _Step(
+                number: 1,
                 title: 'Vart ska vi leverera?',
-                currentStep: _currentStep,
+                current: _currentStep,
                 onEdit: () => setState(() => _currentStep = 1),
-                completedSummary: _addressCtrl.text,
-                activeContent: Column(
+                summary: _addressCtrl.text.isNotEmpty
+                    ? '${_addressCtrl.text}, ${_postCodeCtrl.text} ${_cityCtrl.text}'
+                    : '',
+                content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _fieldLabel('Adress'),
+                    _label('Adress'),
                     const SizedBox(height: AppSpacing.sm),
                     TextField(
                       controller: _addressCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Storgatan 1, 123 45 Stockholm',
-                      ),
+                      decoration: const InputDecoration(hintText: 'Storgatan 1'),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('Postnummer'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(
+                                controller: _postCodeCtrl,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(hintText: '123 45'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('Stad'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(
+                                controller: _cityCtrl,
+                                decoration: const InputDecoration(hintText: 'Stockholm'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(
-                      onPressed: _step1Continue,
-                      child: const Text('Fortsätt'),
-                    ),
+                    ElevatedButton(onPressed: _step1, child: const Text('Fortsätt')),
                   ],
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              _CheckoutStep(
-                stepNumber: 2,
+              _Step(
+                number: 2,
                 title: 'Födelsedatum',
-                currentStep: _currentStep,
+                current: _currentStep,
                 onEdit: () => setState(() => _currentStep = 2),
-                completedSummary: _birthdateCtrl.text,
-                activeContent: Column(
+                summary: _birthdateCtrl.text,
+                content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _fieldLabel('Ditt födelsedatum'),
+                    _label('Ditt födelsedatum'),
                     const SizedBox(height: AppSpacing.sm),
                     TextField(
                       controller: _birthdateCtrl,
                       keyboardType: TextInputType.datetime,
-                      decoration: const InputDecoration(
-                        hintText: 'ÅÅÅÅ-MM-DD',
-                      ),
+                      decoration: const InputDecoration(hintText: 'ÅÅÅÅ-MM-DD'),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(
-                      onPressed: _step2Continue,
-                      child: const Text('Fortsätt'),
-                    ),
+                    ElevatedButton(onPressed: _step2, child: const Text('Fortsätt')),
                   ],
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              _CheckoutStep(
-                stepNumber: 3,
-                title: 'Skapa konto',
-                currentStep: _currentStep,
+              _Step(
+                number: 3,
+                title: 'Dina uppgifter',
+                current: _currentStep,
                 onEdit: () => setState(() => _currentStep = 3),
-                completedSummary: _nameCtrl.text.isNotEmpty
-                    ? '${_nameCtrl.text} · ${_emailCtrl.text}'
-                    : '',
-                activeContent: Column(
+                summary: '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
+                content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _fieldLabel('Namn'),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextField(
-                      controller: _nameCtrl,
-                      decoration:
-                          const InputDecoration(hintText: 'Förnamn Efternamn'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('Förnamn'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(controller: _firstNameCtrl,
+                                  decoration: const InputDecoration(hintText: 'Förnamn')),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('Efternamn'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(controller: _lastNameCtrl,
+                                  decoration: const InputDecoration(hintText: 'Efternamn')),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _fieldLabel('E-post'),
+                    _label('E-post'),
                     const SizedBox(height: AppSpacing.sm),
                     TextField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
-                      decoration:
-                          const InputDecoration(hintText: 'din@email.se'),
+                      decoration: const InputDecoration(hintText: 'din@email.se'),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _fieldLabel('Lösenord'),
+                    _label('Telefon'),
                     const SizedBox(height: AppSpacing.sm),
                     TextField(
-                      controller: _passwordCtrl,
-                      obscureText: true,
-                      decoration:
-                          const InputDecoration(hintText: '••••••••'),
+                      controller: _phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(hintText: '070-123 45 67'),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(
-                      onPressed: _step3Continue,
-                      child: const Text('Fortsätt'),
-                    ),
+                    ElevatedButton(onPressed: _step3, child: const Text('Fortsätt')),
                   ],
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              _CheckoutStep(
-                stepNumber: 4,
+              _Step(
+                number: 4,
                 title: 'Bekräfta beställning',
-                currentStep: _currentStep,
+                current: _currentStep,
                 onEdit: () => setState(() => _currentStep = 4),
-                completedSummary: '',
-                activeContent: Column(
+                summary: '',
+                content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Order summary
-                    ...cartProvider.cart.map((item) => Padding(
+                    ...items.map((item) => Padding(
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: Row(
                             children: [
-                              Text(item.product.image,
-                                  style: const TextStyle(fontSize: 20)),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  '${item.product.name}${item.isOrganic ? " (EKO)" : ""} × ${item.quantity}',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ),
-                              Text(
-                                '${item.lineTotal.toStringAsFixed(0)} kr',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                              ),
+                              Text(item.product.name,
+                                  style: Theme.of(context).textTheme.bodyMedium),
+                              const Text(' × '),
+                              Text('${item.amount.round()}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
+                              const Spacer(),
+                              Text('${item.total.toStringAsFixed(0)} kr',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600)),
                             ],
                           ),
                         )),
@@ -295,11 +321,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         Text('Totalt',
                             style: Theme.of(context).textTheme.headlineMedium),
                         Text(
-                          '${cartProvider.getCartTotal().toStringAsFixed(2)} kr',
-                          style:
-                              Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                    color: AppColors.primary,
-                                  ),
+                          '${imat.shoppingCartTotal().toStringAsFixed(2)} kr',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(color: AppColors.primary),
                         ),
                       ],
                     ),
@@ -307,7 +333,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _step4Continue,
+                        onPressed: _step4,
                         child: const Text('Genomför beställning'),
                       ),
                     ),
@@ -315,7 +341,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
 
-              // Step 5: Success
+              // Success
               if (_currentStep == 5) ...[
                 const SizedBox(height: AppSpacing.md),
                 Card(
@@ -325,11 +351,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         const Text('✅', style: TextStyle(fontSize: 56)),
                         const SizedBox(height: AppSpacing.lg),
-                        Text(
-                          'Tack för din beställning!',
-                          style: Theme.of(context).textTheme.displaySmall,
-                          textAlign: TextAlign.center,
-                        ),
+                        Text('Tack för din beställning!',
+                            style: Theme.of(context).textTheme.displaySmall,
+                            textAlign: TextAlign.center),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'Vi förbereder din order och levererar snart.',
@@ -357,27 +381,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 }
 
-// ─── Step Card ─────────────────────────────────────────────────────────────────
+Widget _label(String text) => Text(
+      text,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+    );
 
-class _CheckoutStep extends StatelessWidget {
-  final int stepNumber;
+// ─── Step card ─────────────────────────────────────────────────────────────────
+
+class _Step extends StatelessWidget {
+  final int number;
   final String title;
-  final int currentStep;
+  final int current;
   final VoidCallback onEdit;
-  final String completedSummary;
-  final Widget activeContent;
+  final String summary;
+  final Widget content;
 
-  const _CheckoutStep({
-    required this.stepNumber,
+  const _Step({
+    required this.number,
     required this.title,
-    required this.currentStep,
+    required this.current,
     required this.onEdit,
-    required this.completedSummary,
-    required this.activeContent,
+    required this.summary,
+    required this.content,
   });
 
-  bool get isActive => currentStep == stepNumber;
-  bool get isCompleted => currentStep > stepNumber;
+  bool get isActive => current == number;
+  bool get isDone => current > number;
 
   @override
   Widget build(BuildContext context) {
@@ -394,34 +423,26 @@ class _CheckoutStep extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Step indicator circle
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: isActive || isCompleted
-                  ? AppColors.primary
-                  : AppColors.muted,
+              color: isActive || isDone ? AppColors.primary : AppColors.muted,
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: isCompleted
-                  ? const Icon(Icons.check,
-                      size: 18, color: AppColors.primaryForeground)
+              child: isDone
+                  ? const Icon(Icons.check, size: 18, color: AppColors.primaryForeground)
                   : Text(
-                      '$stepNumber',
+                      '$number',
                       style: TextStyle(
-                        color: isActive || isCompleted
-                            ? AppColors.primaryForeground
-                            : AppColors.mutedForeground,
+                        color: isActive ? AppColors.primaryForeground : AppColors.mutedForeground,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
             ),
           ),
-
           const SizedBox(width: AppSpacing.lg),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,14 +453,13 @@ class _CheckoutStep extends StatelessWidget {
                         style: Theme.of(context)
                             .textTheme
                             .headlineMedium
-                            ?.copyWith(fontSize: 17)),
+                            ?.copyWith(fontSize: 16)),
                     const Spacer(),
-                    if (isCompleted)
+                    if (isDone)
                       TextButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit, size: 14),
-                        label: const Text('Ändra',
-                            style: TextStyle(fontSize: 13)),
+                        label: const Text('Ändra', style: TextStyle(fontSize: 13)),
                         style: TextButton.styleFrom(
                           padding: EdgeInsets.zero,
                           minimumSize: Size.zero,
@@ -450,15 +470,14 @@ class _CheckoutStep extends StatelessWidget {
                 ),
                 if (isActive) ...[
                   const SizedBox(height: AppSpacing.lg),
-                  activeContent,
-                ] else if (isCompleted && completedSummary.isNotEmpty) ...[
+                  content,
+                ] else if (isDone && summary.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    completedSummary,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.mutedForeground,
-                        ),
-                  ),
+                  Text(summary,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: AppColors.mutedForeground)),
                 ],
               ],
             ),
@@ -468,12 +487,3 @@ class _CheckoutStep extends StatelessWidget {
     );
   }
 }
-
-Widget _fieldLabel(String text) => Text(
-      text,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: AppColors.foreground,
-      ),
-    );
