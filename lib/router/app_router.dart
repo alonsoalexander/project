@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart'; // Behövs för NoTransitionPage
 import 'package:go_router/go_router.dart';
 
 import '../screens/home_screen.dart';
@@ -25,30 +26,43 @@ final appRouter = GoRouter(
   errorBuilder: (context, state) => const NotFoundScreen(),
   routes: [
     ShellRoute(
-      builder: (context, state, child) => AppScaffold(child: child),
+      // Ändrat till pageBuilder för att ta bort animationen på själva skalet
+      pageBuilder: (context, state, child) => NoTransitionPage(
+        child: AppScaffold(child: child),
+      ),
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const HomeScreen(),
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: HomeScreen(),
+          ),
         ),
         GoRoute(
           path: '/products',
-          builder: (context, state) {
+          pageBuilder: (context, state) {
             final query = state.uri.queryParameters['q'];
-            return ProductsScreen(initialSearch: query);
+            return NoTransitionPage(
+              child: ProductsScreen(initialSearch: query),
+            );
           },
         ),
         GoRoute(
           path: '/checkout',
-          builder: (context, state) => const CheckoutScreen(),
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: CheckoutScreen(),
+          ),
         ),
         GoRoute(
           path: '/account',
-          builder: (context, state) => const AccountScreen(),
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: AccountScreen(),
+          ),
         ),
         GoRoute(
           path: '/contact',
-          builder: (context, state) => const ContactScreen(),
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: ContactScreen(),
+          ),
         ),
       ],
     ),

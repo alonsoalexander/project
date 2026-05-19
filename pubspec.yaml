@@ -23,7 +23,6 @@ dependencies:
   material_symbols_icons: ^4.2823.3
   # Confetti animation (replaces canvas-confetti)
   confetti: ^0.7.0
-  google_fonts: ^6.2.1
   flutter_localizations:
     sdk: flutter
 

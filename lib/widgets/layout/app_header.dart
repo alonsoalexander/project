@@ -27,7 +27,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final location = GoRouterState.of(context).uri.path;
 
     return Container(
-      height: 64,
+      height: 200,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         border: Border(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:imat/utils/no_animation_transition.dart';
+
+
 
 // ─── Color Palette ────────────────────────────────────────────────────────────
 // Directly maps CSS custom properties from src/styles/theme.css
@@ -42,58 +44,56 @@ class AppTextStyles {
   AppTextStyles._();
 
   static TextTheme buildTextTheme() {
-    // React project uses system font stack. We use Inter via Google Fonts as
-    // the closest match to the sans-serif stack Tailwind/shadcn uses.
-    return GoogleFonts.interTextTheme(
-      const TextTheme(
-        // h1 → displayLarge  (~text-2xl, 28px, weight 600)
-        displayLarge: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-          color: AppColors.foreground,
-          height: 1.2,
-        ),
-        // h2 → displayMedium (~text-xl, 24px, weight 600)
-        displayMedium: TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: AppColors.foreground,
-          height: 1.3,
-        ),
-        // h3 → displaySmall (~text-lg, 20px, weight 600)
-        displaySmall: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: AppColors.foreground,
-          height: 1.3,
-        ),
-        // h4 → headlineMedium (16px, weight 600)
-        headlineMedium: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.foreground,
-        ),
-        // body / p → bodyLarge (16px, weight 500)
-        bodyLarge: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: AppColors.foreground,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.foreground,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          color: AppColors.mutedForeground,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.foreground,
-        ),
+    // Uses the platform system font (SF Pro on macOS/iOS, Roboto on Android).
+    // React project used the same approach via Tailwind's system font stack.
+    return const TextTheme(
+      // h1 → displayLarge  (~text-2xl, 28px, weight 600)
+      displayLarge: TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        color: AppColors.foreground,
+        height: 1.2,
+      ),
+      // h2 → displayMedium (~text-xl, 24px, weight 600)
+      displayMedium: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        color: AppColors.foreground,
+        height: 1.3,
+      ),
+      // h3 → displaySmall (~text-lg, 20px, weight 600)
+      displaySmall: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: AppColors.foreground,
+        height: 1.3,
+      ),
+      // h4 → headlineMedium (16px, weight 600)
+      headlineMedium: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: AppColors.foreground,
+      ),
+      // body / p → bodyLarge (16px, weight 500)
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+        color: AppColors.foreground,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: AppColors.foreground,
+      ),
+      bodySmall: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.mutedForeground,
+      ),
+      labelLarge: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.foreground,
       ),
     );
   }
@@ -140,6 +140,13 @@ class AppTheme {
     final textTheme = AppTextStyles.buildTextTheme();
 
     return ThemeData(
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: NoAnimationTransitionBuilder(),
+          TargetPlatform.iOS: NoAnimationTransitionBuilder(),
+        }
+      ), 
+        
       useMaterial3: true,
       colorScheme: const ColorScheme(
         brightness: Brightness.light,

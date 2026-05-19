@@ -147,7 +147,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       crossAxisCount: cols,
                       crossAxisSpacing: AppSpacing.md,
                       mainAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.75,
+                      childAspectRatio: 0.62,
                     ),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) => _ProductCard(
