@@ -111,6 +111,7 @@ class InternetHandler {
   static final Queue<String> _queue = Queue();
   static const _maxConcurrent = 5;
   static int _active = 0;
+  static VoidCallback? onImageLoaded;
 
   // Returns a cached Image widget, or null and starts background fetch.
   // Call inside a watch<ImatDataHandler>() context so the widget rebuilds.
@@ -144,7 +145,10 @@ class InternetHandler {
   static Future<void> _fetchImage(String url) async {
     try {
       final res = await http.get(Uri.parse(url), headers: apiKeyHeader);
-      if (res.statusCode == 200) _imageCache[url] = res.bodyBytes;
+      if (res.statusCode == 200) {
+        _imageCache[url] = res.bodyBytes;
+        Future.microtask(() => onImageLoaded?.call());
+      }
     } catch (e) {
       dbugPrint('Image fetch error $url: $e');
     }

@@ -78,12 +78,7 @@ class ImatDataHandler extends ChangeNotifier {
   // get automatic rebuild when the image arrives.
   Image getImage(Product p) {
     final img = InternetHandler.cachedImage(p.productId);
-    if (img != null) {
-      notifyListeners(); // wake up widgets waiting for this image
-      return img;
-    }
-    // Trigger fetch and return placeholder
-    return Image.asset('assets/images/placeholder.png', fit: BoxFit.cover);
+    return img ?? Image.asset('assets/images/placeholder.png', fit: BoxFit.cover);
   }
 
   // ── Favorites ─────────────────────────────────────────────────────────────
@@ -206,6 +201,7 @@ class ImatDataHandler extends ChangeNotifier {
 
   void _setUp() async {
     InternetHandler.kGroupId = Settings.groupId;
+    InternetHandler.onImageLoaded = notifyListeners;
 
     // Products (blocking — needed before anything renders)
     final productsJson = await InternetHandler.getProducts();

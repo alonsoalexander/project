@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:imat/utils/no_animation_transition.dart';
-
-
 
 // ─── Color Palette ────────────────────────────────────────────────────────────
 // Directly maps CSS custom properties from src/styles/theme.css
@@ -145,13 +142,6 @@ class AppTheme {
     final textTheme = AppTextStyles.buildTextTheme();
 
     return ThemeData(
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: NoAnimationTransitionBuilder(),
-          TargetPlatform.iOS: NoAnimationTransitionBuilder(),
-        }
-      ), 
-        
       useMaterial3: true,
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
