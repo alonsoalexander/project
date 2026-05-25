@@ -90,20 +90,23 @@ class _HeroSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 400,
+      height: 300,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Background gradient (replacing the hero image)
           Image.asset(
-            'assets/feature-image.png',
+            'assets/images/feature-image.png',
             fit: BoxFit.cover,
-            //errorBuilder: (_, __, ___) => _fallbackGradient(),
+             errorBuilder: (context, error, stackTrace) {
+              debugPrint('Image error: $error');  // prints to console
+              return Container(color: Colors.red); // visible red = asset not found
+  },
           ),
 
           // Dark overlay (matches bg-black/50 in React)
-          Container(color: Colors.black.withValues(alpha: 0.4)),
+          Container(color: Colors.black.withValues(alpha: 0.6)),
 
           // Content card (matches the white/95 card in React)
           Center(

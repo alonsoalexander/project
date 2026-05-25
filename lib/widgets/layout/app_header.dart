@@ -51,16 +51,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 onTap: () => context.go('/'),
                 child: Row(
                   children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: AppRadius.medium,
-                      ),
-                      child: const Center(
-                        child: Text('🛒', style: TextStyle(fontSize: 18)),
-                      ),
+                    Image.asset(
+                      'assets/images/logga-imat.png',
+                      fit: BoxFit.cover,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
@@ -105,87 +98,60 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
 
-
               const SizedBox(width: AppSpacing.lg),
 
               // ── Nav links ─────────────────────────────────────────────────
-              ..._navItems.map((item) => _NavLink(
-                label: item.label,
-                path: item.path,
-                active: location == item.path,
-              )),
-              
-              // ── Nav links ─────────────────────────────────────────────────
-              // _NavLink(
-              //   label: 'Startsida',
-              //   path: '/',
-              //   active: location == '/',
-              // ),
-              // _NavLink(
-              //   label: 'Handla',
-              //   path: '/products',
-              //   active: location == '/products',
-              // ),
-              // _NavLink(
-              //   label: 'Kontakt',
-              //   path: '/contact',
-              //   active: location == '/contact',
-              // ),
-              // _NavLink(
-              //   label: 'Mitt konto',
-              //   path: '/account',
-              //   active: location == '/account',
-              // ),
+              ..._navItems.expand((item) => [
+                    _NavLink(
+                      label: item.label,
+                      path: item.path,
+                      active: location == item.path,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ]),
 
               const SizedBox(width: AppSpacing.sm),
 
               // ── Kassa button with cart badge ──────────────────────────────
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => context.go('/checkout'),
-                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                    label: const Text('Kassa'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: location == '/checkout'
-                          ? AppColors.primary
-                          : AppColors.primary.withValues(alpha: 0.9),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
+              // ── Kassa button with cart badge ──────────────────────────────
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _NavLink(
+                  label: 'Kassa',
+                  path: '/checkout',
+                  active: location == '/checkout',
+                  icon: Icons.shopping_cart_outlined,
+                ),
+                if (cart.cartItemCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.surface,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '${cart.cartItemCount}',
+                          style: const TextStyle(
+                            color: AppColors.primaryForeground,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  if (cart.cartItemCount > 0)
-                    Positioned(
-                      top: -6,
-                      right: -6,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.surface,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${cart.cartItemCount}',
-                            style: const TextStyle(
-                              color: AppColors.primaryForeground,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              ],
+            ),
             ],
           ),
         ),
@@ -196,6 +162,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
 class _NavLink extends StatelessWidget {
   final String label;
+  final IconData? icon;
   final String path;
   final bool active;
 
@@ -203,40 +170,48 @@ class _NavLink extends StatelessWidget {
     required this.label,
     required this.path,
     required this.active,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return ElevatedButton(
       onPressed: () => context.go(path),
-      style: TextButton.styleFrom(
-        foregroundColor: active ? AppColors.primary : AppColors.foreground,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: active
+            ? AppColors.primary
+            : const Color.fromARGB(255, 255, 255, 255),
+        foregroundColor:
+            active ? AppColors.primaryForeground : AppColors.foreground,
+        elevation: 2,
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.medium,
         ),
       ),
-      child: Column(
+      child: icon != null
+    ? Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
+          Icon(icon, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-            ),
-          ),
-          if (active)
-            Container(
-              margin: const EdgeInsets.only(top: 2),
-              height: 2,
-              width: 24,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(1),
               ),
             ),
         ],
+      )
+      :Text(
+        label,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+        ),
       ),
     );
   }
