@@ -17,26 +17,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int _currentStep = 1;
   bool _orderPlaced = false;
 
-  final _addressCtrl = TextEditingController();
-  final _postCodeCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
+  // Step 1 – Address
+  final _addressCtrl   = TextEditingController();
+  final _postCodeCtrl  = TextEditingController();
+  final _cityCtrl      = TextEditingController();
+
+  // Step 2 – Birthdate
   final _birthdateCtrl = TextEditingController();
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+
+  // Step 3 – Personal info + card
+  final _firstNameCtrl  = TextEditingController();
+  final _lastNameCtrl   = TextEditingController();
+  final _emailCtrl      = TextEditingController();
+  final _phoneCtrl      = TextEditingController();
+  final _cardNumberCtrl = TextEditingController();
+  final _expiryCtrl     = TextEditingController();
+  final _cvcCtrl        = TextEditingController();
+
+  // Step 4 – Delivery
+  DateTime? _deliveryDate;
+  String?   _deliveryTimeSlot;
+
+  static const _timeSlots = [
+    '08:00 – 12:00',
+    '12:00 – 17:00',
+    '17:00 – 21:00',
+  ];
 
   @override
   void initState() {
     super.initState();
     final c = context.read<ImatDataHandler>().getCustomer();
     _firstNameCtrl.text = c.firstName;
-    _lastNameCtrl.text = c.lastName;
-    _emailCtrl.text = c.email;
-    _phoneCtrl.text = c.phoneNumber;
-    _addressCtrl.text = c.address;
-    _postCodeCtrl.text = c.postCode;
-    _cityCtrl.text = c.postAddress;
+    _lastNameCtrl.text  = c.lastName;
+    _emailCtrl.text     = c.email;
+    _phoneCtrl.text     = c.phoneNumber;
+    _addressCtrl.text   = c.address;
+    _postCodeCtrl.text  = c.postCode;
+    _cityCtrl.text      = c.postAddress;
   }
 
   @override
@@ -44,6 +62,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     for (final c in [
       _addressCtrl, _postCodeCtrl, _cityCtrl, _birthdateCtrl,
       _firstNameCtrl, _lastNameCtrl, _emailCtrl, _phoneCtrl,
+      _cardNumberCtrl, _expiryCtrl, _cvcCtrl,
     ]) {
       c.dispose();
     }
@@ -79,10 +98,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _showError('Vänligen fyll i namn');
       return;
     }
+    if (_cardNumberCtrl.text.trim().isEmpty) {
+      _showError('Vänligen fyll i kortnummer');
+      return;
+    }
+    if (_expiryCtrl.text.trim().isEmpty) {
+      _showError('Vänligen fyll i utgångsdatum');
+      return;
+    }
+    if (_cvcCtrl.text.trim().isEmpty) {
+      _showError('Vänligen fyll i CVC');
+      return;
+    }
     setState(() => _currentStep = 4);
   }
 
-  Future<void> _step4() async {
+  void _step4() {
+    if (_deliveryDate == null) {
+      _showError('Vänligen välj ett leveransdatum');
+      return;
+    }
+    if (_deliveryTimeSlot == null) {
+      _showError('Vänligen välj en leveranstid');
+      return;
+    }
+    setState(() => _currentStep = 5);
+  }
+
+  Future<void> _step5() async {
     final imat = context.read<ImatDataHandler>();
     imat.setCustomer(Customer(
       _firstNameCtrl.text.trim(),
@@ -97,14 +140,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await imat.placeOrder();
     if (!mounted) return;
     setState(() {
-      _currentStep = 5;
+      _currentStep = 6;
       _orderPlaced = true;
     });
   }
 
+  String get _deliverySummary {
+    if (_deliveryDate == null || _deliveryTimeSlot == null) return '';
+    final d = _deliveryDate!;
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}  $_deliveryTimeSlot';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final imat = context.watch<ImatDataHandler>();
+    final imat  = context.watch<ImatDataHandler>();
     final items = imat.cartItems;
 
     if (items.isEmpty && !_orderPlaced) {
@@ -140,6 +189,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Text('Kassa', style: Theme.of(context).textTheme.displayMedium),
               const SizedBox(height: AppSpacing.xl),
 
+              // ── Steg 1: Adress ──────────────────────────────────────────────
               _Step(
                 number: 1,
                 title: 'Vart ska vi leverera?',
@@ -200,6 +250,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
+              // ── Steg 2: Födelsedatum ────────────────────────────────────────
               _Step(
                 number: 2,
                 title: 'Födelsedatum',
@@ -224,6 +275,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
+              // ── Steg 3: Dina uppgifter + kort ───────────────────────────────
               _Step(
                 number: 3,
                 title: 'Dina uppgifter',
@@ -276,6 +328,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(hintText: '070-123 45 67'),
                     ),
+
+                    const SizedBox(height: AppSpacing.xl),
+                    const Divider(),
+                    const SizedBox(height: AppSpacing.md),
+                    _label('Kortuppgifter'),
+                    const SizedBox(height: AppSpacing.md),
+
+                    _label('Kortnummer'),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextField(
+                      controller: _cardNumberCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(hintText: '1234 5678 9012 3456'),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('Utgångsdatum'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(
+                                controller: _expiryCtrl,
+                                keyboardType: TextInputType.datetime,
+                                decoration: const InputDecoration(hintText: 'MM/ÅÅ'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _label('CVC'),
+                              const SizedBox(height: AppSpacing.sm),
+                              TextField(
+                                controller: _cvcCtrl,
+                                keyboardType: TextInputType.number,
+                                obscureText: true,
+                                decoration: const InputDecoration(hintText: '123'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: AppSpacing.lg),
                     ElevatedButton(onPressed: _step3, child: const Text('Fortsätt')),
                   ],
@@ -284,11 +385,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
+              // ── Steg 4: Leverans ────────────────────────────────────────────
               _Step(
                 number: 4,
-                title: 'Bekräfta beställning',
+                title: 'Leverans',
                 current: _currentStep,
                 onEdit: () => setState(() => _currentStep = 4),
+                summary: _deliverySummary,
+                content: _DeliveryPicker(
+                  selectedDate: _deliveryDate,
+                  selectedSlot: _deliveryTimeSlot,
+                  timeSlots: _timeSlots,
+                  onDateSelected: (d) => setState(() => _deliveryDate = d),
+                  onSlotSelected: (s) => setState(() => _deliveryTimeSlot = s),
+                  onContinue: _step4,
+                ),
+              ),
+
+              const SizedBox(height: AppSpacing.md),
+
+              // ── Steg 5: Bekräfta beställning ────────────────────────────────
+              _Step(
+                number: 5,
+                title: 'Bekräfta beställning',
+                current: _currentStep,
+                onEdit: () => setState(() => _currentStep = 5),
                 summary: '',
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +436,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         )),
                     const Divider(height: AppSpacing.xl),
+                    if (_deliverySummary.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.local_shipping_outlined, size: 16,
+                              color: AppColors.mutedForeground),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(_deliverySummary,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: AppColors.mutedForeground)),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -333,7 +469,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _step4,
+                        onPressed: _step5,
                         child: const Text('Genomför beställning'),
                       ),
                     ),
@@ -341,8 +477,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
 
-              // Success
-              if (_currentStep == 5) ...[
+              // ── Success ─────────────────────────────────────────────────────
+              if (_currentStep == 6) ...[
                 const SizedBox(height: AppSpacing.md),
                 Card(
                   child: Padding(
@@ -356,7 +492,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             textAlign: TextAlign.center),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Vi förbereder din order och levererar snart.',
+                          'Vi levererar $_deliverySummary.',
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -381,12 +517,168 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 }
 
+// ─── Delivery date + time picker ─────────────────────────────────────────────
+
+class _DeliveryPicker extends StatelessWidget {
+  final DateTime? selectedDate;
+  final String?   selectedSlot;
+  final List<String> timeSlots;
+  final ValueChanged<DateTime> onDateSelected;
+  final ValueChanged<String>   onSlotSelected;
+  final VoidCallback onContinue;
+
+  const _DeliveryPicker({
+    required this.selectedDate,
+    required this.selectedSlot,
+    required this.timeSlots,
+    required this.onDateSelected,
+    required this.onSlotSelected,
+    required this.onContinue,
+  });
+
+  static const _weekdayNames = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
+  static const _monthNames   = [
+    '', 'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+    'jul', 'aug', 'sep', 'okt', 'nov', 'dec'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final dates = List.generate(7, (i) => today.add(Duration(days: i + 1)));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Välj leveransdag'),
+        const SizedBox(height: AppSpacing.md),
+        SizedBox(
+          height: 72,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: dates.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+            itemBuilder: (context, i) {
+              final d = dates[i];
+              final selected = selectedDate != null &&
+                  selectedDate!.day == d.day &&
+                  selectedDate!.month == d.month;
+              final weekday = _weekdayNames[d.weekday - 1];
+              final month   = _monthNames[d.month];
+              return GestureDetector(
+                onTap: () => onDateSelected(d),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : AppColors.surface,
+                    border: Border.all(
+                      color: selected ? AppColors.primary : AppColors.border,
+                      width: selected ? 2 : 1,
+                    ),
+                    borderRadius: AppRadius.medium,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        weekday,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: selected
+                              ? AppColors.primaryForeground
+                              : AppColors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${d.day}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: selected
+                              ? AppColors.primaryForeground
+                              : AppColors.foreground,
+                        ),
+                      ),
+                      Text(
+                        month,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: selected
+                              ? AppColors.primaryForeground
+                              : AppColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: AppSpacing.xl),
+        _label('Välj tid på dagen'),
+        const SizedBox(height: AppSpacing.md),
+        Column(
+          children: timeSlots.map((slot) {
+            final selected = selectedSlot == slot;
+            return GestureDetector(
+              onTap: () => onSlotSelected(slot),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary.withValues(alpha: 0.08) : AppColors.surface,
+                  border: Border.all(
+                    color: selected ? AppColors.primary : AppColors.border,
+                    width: selected ? 2 : 1,
+                  ),
+                  borderRadius: AppRadius.medium,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      selected
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      size: 20,
+                      color: selected ? AppColors.primary : AppColors.mutedForeground,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Text(
+                      slot,
+                      style: TextStyle(
+                        fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                        color: selected ? AppColors.primary : AppColors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+
+        const SizedBox(height: AppSpacing.lg),
+        ElevatedButton(onPressed: onContinue, child: const Text('Fortsätt')),
+      ],
+    );
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 Widget _label(String text) => Text(
       text,
       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
     );
 
-// ─── Step card ─────────────────────────────────────────────────────────────────
+// ─── Step card ────────────────────────────────────────────────────────────────
 
 class _Step extends StatelessWidget {
   final int number;
@@ -406,7 +698,7 @@ class _Step extends StatelessWidget {
   });
 
   bool get isActive => current == number;
-  bool get isDone => current > number;
+  bool get isDone   => current > number;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +728,9 @@ class _Step extends StatelessWidget {
                   : Text(
                       '$number',
                       style: TextStyle(
-                        color: isActive ? AppColors.primaryForeground : AppColors.mutedForeground,
+                        color: isActive
+                            ? AppColors.primaryForeground
+                            : AppColors.mutedForeground,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

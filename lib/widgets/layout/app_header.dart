@@ -88,10 +88,17 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                               },
                             )
                           : null,
-                      isDense: true,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
+                        vertical: 14,
+                      ),
+                      enabledBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                        borderSide: BorderSide(color: AppColors.primary, width: 2),
+                      ),
+                      focusedBorder: const OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                        borderSide: BorderSide(color: AppColors.primary, width: 2.5),
                       ),
                     ),
                   ),
@@ -186,7 +193,7 @@ class _NavLink extends StatelessWidget {
         elevation: 2,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
+          vertical: 14,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.medium,

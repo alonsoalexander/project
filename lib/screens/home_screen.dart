@@ -1,28 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-
+import 'package:imat/model/imat/product.dart';
+import 'package:imat/model/imat_data_handler.dart';
+import 'package:imat/model/internet_handler.dart';
+import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/product_modal.dart';
 
-
-// Maps Home.tsx — hero section + Veckans klipp grid
+// Product IDs and their sale prices for Veckans klipp
+const _dealPrices = {
+  2:  19.0,
+  7:  10.0,
+  6:  25.0,
+  1:  14.0,
+  15: 29.0,
+  20: 18.0,
+};
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-
-  static const _weeklyDeals = [
-    (id: 2,  name: 'Äpplen',  price: 25, salePrice: 19, image: '🍎', unit: 'kg'),
-    (id: 7,  name: 'Mjölk',   price: 14, salePrice: 10, image: '🥛', unit: 'l'),
-    (id: 6,  name: 'Bröd',    price: 32, salePrice: 25, image: '🍞', unit: 'st'),
-    (id: 1,  name: 'Bananer', price: 18, salePrice: 14, image: '🍌', unit: 'kg'),
-    (id: 15, name: 'Ägg',     price: 38, salePrice: 29, image: '🥚', unit: 'förp'),
-    (id: 20, name: 'Juice',   price: 24, salePrice: 18, image: '🧃', unit: 'l'),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final imat = context.watch<ImatDataHandler>();
+
+    final deals = _dealPrices.keys
+        .map((id) => imat.getProduct(id))
+        .whereType<Product>()
+        .toList();
+
     return Column(
       children: [
         // ── Hero section ──────────────────────────────────────────────────────
@@ -57,25 +64,37 @@ class HomeScreen extends StatelessWidget {
                 // Deal cards grid
                 Padding(
                   padding: const EdgeInsets.all(AppSpacing.xl),
-                  child: LayoutBuilder(builder: (context, constraints) {
-                    final crossAxisCount =
-                        constraints.maxWidth > 800 ? 6 : constraints.maxWidth > 500 ? 3 : 2;
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: AppSpacing.md,
-                        mainAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 0.65,
-                      ),
-                      itemCount: _weeklyDeals.length,
-                      itemBuilder: (context, index) {
-                        final deal = _weeklyDeals[index];
-                        return _DealCard(deal: deal);
-                      },
-                    );
-                  }),
+                  child: imat.isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(AppSpacing.xxxl),
+                          child: CircularProgressIndicator(),
+                        )
+                      : LayoutBuilder(builder: (context, constraints) {
+                          final crossAxisCount = constraints.maxWidth > 800
+                              ? 6
+                              : constraints.maxWidth > 500
+                                  ? 3
+                                  : 2;
+                          return GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: AppSpacing.md,
+                              mainAxisSpacing: AppSpacing.md,
+                              childAspectRatio: 0.62,
+                            ),
+                            itemCount: deals.length,
+                            itemBuilder: (context, index) {
+                              final product = deals[index];
+                              final salePrice = _dealPrices[product.productId]!;
+                              return _DealCard(
+                                product: product,
+                                salePrice: salePrice,
+                              );
+                            },
+                          );
+                        }),
                 ),
               ],
             ),
@@ -95,20 +114,15 @@ class _HeroSection extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Background gradient (replacing the hero image)
           Image.asset(
             'assets/images/feature-image.png',
             fit: BoxFit.cover,
-             errorBuilder: (context, error, stackTrace) {
-              debugPrint('Image error: $error');  // prints to console
-              return Container(color: Colors.red); // visible red = asset not found
-  },
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('Image error: $error');
+              return Container(color: Colors.red);
+            },
           ),
-
-          // Dark overlay (matches bg-black/50 in React)
           Container(color: Colors.black.withValues(alpha: 0.6)),
-
-          // Content card (matches the white/95 card in React)
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
@@ -135,10 +149,7 @@ class _HeroSection extends StatelessWidget {
                     Text(
                       'Välkommen till iMat',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context)
-                          .textTheme
-                          .displayLarge
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
                             fontSize: 36,
                             fontWeight: FontWeight.w800,
                             color: AppColors.foreground,
@@ -180,88 +191,129 @@ class _HeroSection extends StatelessWidget {
   }
 }
 
-class _DealCard extends StatelessWidget {
-  final ({int id, String name, int price, int salePrice, String image, String unit}) deal;
+class _DealCard extends StatefulWidget {
+  final Product product;
+  final double salePrice;
 
-  const _DealCard({required this.deal});
+  const _DealCard({required this.product, required this.salePrice});
+
+  @override
+  State<_DealCard> createState() => _DealCardState();
+}
+
+class _DealCardState extends State<_DealCard> {
+  final _cardKey = GlobalKey();
+
+  void _open() {
+    final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
+    showProductPopup(context, widget.product, box);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final img = InternetHandler.cachedImage(widget.product.productId);
+
     return Card(
+      key: _cardKey,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.go('/products'),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Kampanj badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDC2626),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Kampanj',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+        onTap: _open,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image
+            Expanded(
+              flex: 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  img ??
+                      Container(
+                        color: AppColors.accent,
+                        child: Image.asset(
+                          'assets/images/placeholder.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Kampanj',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
+                ],
+              ),
+            ),
+
+            // Info
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.product.name,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            decoration: TextDecoration.lineThrough,
+                            color: AppColors.mutedForeground,
+                          ),
+                    ),
+                    Text(
+                      '${widget.salePrice.toStringAsFixed(widget.salePrice.truncateToDouble() == widget.salePrice ? 0 : 2)} kr/${widget.product.unit}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFDC2626),
+                          ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+            ),
 
-              // Emoji
-              Center(
-                child: Text(deal.image,
-                    style: const TextStyle(fontSize: 44)),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-
-              // Name
-              Text(
-                deal.name,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-
-              // Prices
-              Text(
-                '${deal.price} kr/${deal.unit}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      decoration: TextDecoration.lineThrough,
-                      color: AppColors.mutedForeground,
-                    ),
-              ),
-              Text(
-                '${deal.salePrice} kr/${deal.unit}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFDC2626),
-                    ),
-              ),
-
-              const Spacer(),
-              SizedBox(
+            // Add button
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+              child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => context.go('/products'),
+                child: ElevatedButton.icon(
+                  onPressed: _open,
+                  icon: const Icon(Icons.add, size: 15),
+                  label: const Text('Välj'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    minimumSize: const Size(0, 32),
-                    textStyle: const TextStyle(fontSize: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
-                  child: const Text('Handla'),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
