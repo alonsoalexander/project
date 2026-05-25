@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+
+
 import '../theme/app_theme.dart';
+
 
 // Maps Home.tsx — hero section + Veckans klipp grid
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
+
 
   static const _weeklyDeals = [
     (id: 2,  name: 'Äpplen',  price: 25, salePrice: 19, image: '🍎', unit: 'kg'),
@@ -86,20 +90,16 @@ class _HeroSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 500,
+      height: 400,
       width: double.infinity,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Background gradient (replacing the hero image)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1B4332), Color(0xFF2D5A27), Color(0xFF4A7C3F)],
-              ),
-            ),
+          Image.asset(
+            'assets/feature-image.png',
+            fit: BoxFit.cover,
+            //errorBuilder: (_, __, ___) => _fallbackGradient(),
           ),
 
           // Dark overlay (matches bg-black/50 in React)
