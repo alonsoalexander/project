@@ -145,7 +145,7 @@ class ImatDataHandler extends ChangeNotifier {
   List<Order> get orders => List.unmodifiable(_orders);
 
   Future<void> placeOrder() async {
-    await InternetHandler.placeOrder();
+    await InternetHandler.placeOrder(_shoppingCart);
     _shoppingCart.clear();
     notifyListeners();
     await _loadOrders();
@@ -260,12 +260,21 @@ class ImatDataHandler extends ChangeNotifier {
   }
 
   Future<void> _loadOrders() async {
-    final json = await InternetHandler.getOrders();
-    if (json.isNotEmpty) {
-      final list = jsonDecode(json) as List;
-      _orders
-        ..clear()
-        ..addAll(list.map((j) => Order.fromJson(j)));
+    try {
+      final json = await InternetHandler.getOrders();
+      debugPrint('🛒 getOrders raw: $json');
+      if (json.isNotEmpty) {
+        final list = jsonDecode(json) as List;
+        debugPrint('🛒 parsed ${list.length} orders');
+        _orders
+          ..clear()
+          ..addAll(list.map((j) => Order.fromJson(j as Map<String, dynamic>)));
+        debugPrint('🛒 _orders now has ${_orders.length} entries');
+      } else {
+        debugPrint('🛒 getOrders returned empty string');
+      }
+    } catch (e, st) {
+      debugPrint('🛒 _loadOrders error: $e\n$st');
     }
     notifyListeners();
   }

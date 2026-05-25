@@ -9,11 +9,13 @@ class Order {
   Order(this.orderNumber, this.date, this.items);
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    final jsonItems = json[_items] as List;
+    final rawItems = json[_items];
+    // The API may return items as a JSON string or as a parsed List
+    final List itemsList = rawItems is String ? jsonDecode(rawItems) as List : (rawItems as List? ?? []);
     return Order(
-      json[_orderNumber] as int,
-      DateTime.fromMillisecondsSinceEpoch(json[_date] as int),
-      jsonItems.map((i) => ShoppingItem.fromJson(i)).toList(),
+      (json[_orderNumber] as num).toInt(),
+      DateTime.fromMillisecondsSinceEpoch((json[_date] as num).toInt()),
+      itemsList.map((i) => ShoppingItem.fromJson(i as Map<String, dynamic>)).toList(),
     );
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:imat/model/imat/shopping_item.dart';
 import 'package:imat/model/imat_data_handler.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
@@ -123,7 +122,7 @@ class AccountScreen extends StatelessWidget {
                         )
                       else
                         ...orders.map((order) {
-                          final dateStr = DateFormat('d MMMM yyyy', 'sv_SE').format(order.date);
+                          final dateStr = _formatDate(order.date);
                           return Container(
                             margin: const EdgeInsets.only(bottom: AppSpacing.lg),
                             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -231,6 +230,13 @@ class AccountScreen extends StatelessWidget {
     );
   }
 }
+
+const _monthNames = [
+  '', 'januari', 'februari', 'mars', 'april', 'maj', 'juni',
+  'juli', 'augusti', 'september', 'oktober', 'november', 'december',
+];
+
+String _formatDate(DateTime d) => '${d.day} ${_monthNames[d.month]} ${d.year}';
 
 Widget _infoRow(BuildContext context, String label, String value) => Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),

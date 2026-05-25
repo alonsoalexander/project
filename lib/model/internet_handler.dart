@@ -67,8 +67,8 @@ class InternetHandler {
   static Future<String> addFavorite(int pid) =>
       _put('favorites', jsonEncode(pid), cid: kGroupId, pid: pid);
 
-  static Future<String> placeOrder() =>
-      _put('orders', jsonEncode([]), cid: kGroupId);
+  static Future<String> placeOrder(ShoppingCart cart) =>
+      _put('orders', jsonEncode(cart), cid: kGroupId);
 
   static Future<String> _put(String endpoint, String body, {int cid = 0, int pid = 0}) async {
     final url = _url(endpoint, cid: cid, pid: pid);
