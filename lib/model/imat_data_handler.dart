@@ -10,6 +10,7 @@ import 'package:imat/model/imat/shopping_cart.dart';
 import 'package:imat/model/imat/shopping_item.dart';
 import 'package:imat/model/imat/user.dart';
 import 'package:imat/model/internet_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ImatDataHandler is the single source of truth for all app state.
 // It replaces both CartProvider and the static products_data.dart.
@@ -145,10 +146,19 @@ class ImatDataHandler extends ChangeNotifier {
   List<Order> get orders => List.unmodifiable(_orders);
 
   Future<void> placeOrder() async {
-    await InternetHandler.placeOrder(_shoppingCart);
+    final prefs = await SharedPreferences.getInstance();
+    final nextNumber = (prefs.getInt('imat_order_counter') ?? 1000) + 1;
+    await prefs.setInt('imat_order_counter', nextNumber);
+
+    final order = Order(nextNumber, DateTime.now(), List.of(_shoppingCart.items));
+    _orders.insert(0, order);
+
+    final encoded = jsonEncode(_orders.map((o) => o.toJson()).toList());
+    await prefs.setString('imat_orders', encoded);
+
     _shoppingCart.clear();
+    _syncCart();
     notifyListeners();
-    await _loadOrders();
   }
 
   // ── Customer / User / Card ────────────────────────────────────────────────
@@ -261,20 +271,16 @@ class ImatDataHandler extends ChangeNotifier {
 
   Future<void> _loadOrders() async {
     try {
-      final json = await InternetHandler.getOrders();
-      debugPrint('🛒 getOrders raw: $json');
-      if (json.isNotEmpty) {
-        final list = jsonDecode(json) as List;
-        debugPrint('🛒 parsed ${list.length} orders');
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('imat_orders');
+      if (stored != null && stored.isNotEmpty) {
+        final list = jsonDecode(stored) as List;
         _orders
           ..clear()
           ..addAll(list.map((j) => Order.fromJson(j as Map<String, dynamic>)));
-        debugPrint('🛒 _orders now has ${_orders.length} entries');
-      } else {
-        debugPrint('🛒 getOrders returned empty string');
       }
     } catch (e, st) {
-      debugPrint('🛒 _loadOrders error: $e\n$st');
+      debugPrint('_loadOrders error: $e\n$st');
     }
     notifyListeners();
   }

@@ -49,52 +49,47 @@ class AppTextStyles {
     // Uses the platform system font (SF Pro on macOS/iOS, Roboto on Android).
     // React project used the same approach via Tailwind's system font stack.
     return const TextTheme(
-      // h1 → displayLarge  (~text-2xl, 28px, weight 600)
       displayLarge: TextStyle(
-        fontSize: 28,
-        fontWeight: FontWeight.w600,
+        fontSize: 32,
+        fontWeight: FontWeight.w700,
         color: AppColors.foreground,
         height: 1.2,
       ),
-      // h2 → displayMedium (~text-xl, 24px, weight 600)
       displayMedium: TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.w600,
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
         color: AppColors.foreground,
         height: 1.3,
       ),
-      // h3 → displaySmall (~text-lg, 20px, weight 600)
       displaySmall: TextStyle(
         fontSize: 40,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: AppColors.foreground,
         height: 1.3,
       ),
-      // h4 → headlineMedium (16px, weight 600)
       headlineMedium: TextStyle(
-        fontSize: 16,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: AppColors.foreground,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.foreground,
       ),
-      // body / p → bodyLarge (16px, weight 500)
-      bodyLarge: TextStyle(
+      bodyMedium: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w500,
         color: AppColors.foreground,
       ),
-      bodyMedium: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        color: AppColors.foreground,
-      ),
       bodySmall: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
         color: AppColors.mutedForeground,
       ),
       labelLarge: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
         color: AppColors.foreground,
       ),
     );

@@ -48,32 +48,28 @@ class _AppScaffoldState extends State<AppScaffold> {
         searchController: _searchController,
         onSearchSubmit: _handleSearchSubmit,
       ),
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Main content
-                Expanded(
-                  child: SingleChildScrollView(
+            child: location == '/products'
+                ? widget.child
+                : SingleChildScrollView(
                     child: Column(
                       children: [
                         ConstrainedBox(
                           constraints: const BoxConstraints(minHeight: 600),
                           child: widget.child,
                         ),
+                        const SizedBox(height: 300),
                         const AppFooter(),
                       ],
                     ),
                   ),
-                ),
-
-                // Right sidebar — cart (only on /products and /checkout)
-                if (showSidebar) const CartSidebar(),
-              ],
-            ),
           ),
+
+          // Right sidebar — cart (only on /products and /checkout)
+          if (showSidebar) const CartSidebar(),
         ],
       ),
     );

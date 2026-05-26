@@ -48,7 +48,7 @@ class Product {
     : productId = json[_idKey],
       category = _category(json[_catKey]),
       name = json[_nameKey],
-      isEcological = json[_ecoKey],
+      isEcological = (json[_ecoKey] ?? json['isEcological']) as bool,
       price = (json[_priceKey] as num).toDouble(),
       unit = json[_unitKey],
       imageName = json[_imageKey];

@@ -6,6 +6,7 @@ import 'package:imat/model/internet_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/layout/app_footer.dart';
 import '../widgets/product_modal.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -21,6 +22,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
   // null = "Alla" (inga filter)
   String? _selectedGroup;
   late String _searchQuery;
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -75,13 +83,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ))
         .toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Category sidebar ──────────────────────────────────────────────
-          SizedBox(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Category sidebar (sticky) ─────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.xl, 0, AppSpacing.xl),
+          child: SizedBox(
             width: 190,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,11 +149,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ],
             ),
           ),
+        ),
 
-          const SizedBox(width: AppSpacing.xl),
+        const SizedBox(width: AppSpacing.xl),
 
-          // ── Product grid ──────────────────────────────────────────────────
-          Expanded(
+        // ── Product grid (scrollable) ─────────────────────────────────────
+        Expanded(
+          child: ScrollbarTheme(
+            data: ScrollbarThemeData(
+              thumbColor: WidgetStateProperty.all(AppColors.primary),
+              trackColor: WidgetStateProperty.all(
+                  AppColors.primary.withValues(alpha: 0.15)),
+              thumbVisibility: WidgetStateProperty.all(true),
+              trackVisibility: WidgetStateProperty.all(true),
+              thickness: WidgetStateProperty.all(6),
+              radius: const Radius.circular(3),
+            ),
+            child: Scrollbar(
+              controller: _scrollController,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(
+                    0, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -183,7 +209,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       crossAxisCount: cols,
                       crossAxisSpacing: AppSpacing.md,
                       mainAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.62,
+                      childAspectRatio: 0.55,
                     ),
                     itemCount: filtered.length,
                     itemBuilder: (context, index) => _ProductCard(
@@ -204,11 +230,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: 300),
+                const AppFooter(),
               ],
             ),
           ),
-        ],
+        ),
       ),
+    ),
+      ],
     );
   }
 }

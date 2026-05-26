@@ -14,6 +14,7 @@ class CartSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final imat = context.watch<ImatDataHandler>();
     final items = imat.cartItems;
+    final onCheckout = GoRouterState.of(context).uri.path == '/checkout';
 
     return Container(
       width: 320,
@@ -84,7 +85,7 @@ class CartSidebar extends StatelessWidget {
           ),
 
           // ── Footer ────────────────────────────────────────────────────────
-          if (items.isNotEmpty) ...[
+          if (items.isNotEmpty && !onCheckout) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
