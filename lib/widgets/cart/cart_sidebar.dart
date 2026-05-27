@@ -85,7 +85,7 @@ class CartSidebar extends StatelessWidget {
           ),
 
           // ── Footer ────────────────────────────────────────────────────────
-          if (items.isNotEmpty && !onCheckout) ...[
+          if (items.isNotEmpty) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -104,14 +104,16 @@ class CartSidebar extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => context.go('/checkout'),
-                      child: const Text('Till kassan →'),
+                  if (!onCheckout) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => context.go('/checkout'),
+                        child: const Text('Till kassan →'),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

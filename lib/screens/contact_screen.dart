@@ -130,7 +130,7 @@ class _ContactForm extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(hintText: 'Ditt namn'),
+                decoration: _greenInput(hintText: 'Ditt namn'),
                 validator: (v) =>
                     v == null || v.isEmpty ? 'Namn krävs' : null,
               ),
@@ -141,7 +141,7 @@ class _ContactForm extends StatelessWidget {
               TextFormField(
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(hintText: 'din@email.se'),
+                decoration: _greenInput(hintText: 'din@email.se'),
                 validator: (v) =>
                     v == null || !v.contains('@') ? 'Ogiltig e-post' : null,
               ),
@@ -151,8 +151,7 @@ class _ContactForm extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               TextFormField(
                 controller: subjectCtrl,
-                decoration:
-                    const InputDecoration(hintText: 'Vad gäller det?'),
+                decoration: _greenInput(hintText: 'Vad gäller det?'),
                 validator: (v) =>
                     v == null || v.isEmpty ? 'Ämne krävs' : null,
               ),
@@ -163,7 +162,7 @@ class _ContactForm extends StatelessWidget {
               TextFormField(
                 controller: messageCtrl,
                 maxLines: 5,
-                decoration: const InputDecoration(
+                decoration: _greenInput(
                   hintText: 'Skriv ditt meddelande här...',
                   alignLabelWithHint: true,
                 ),
@@ -276,5 +275,27 @@ Widget _label(String text) => Text(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.foreground,
+      ),
+    );
+
+InputDecoration _greenInput({String? hintText, bool alignLabelWithHint = false}) =>
+    InputDecoration(
+      hintText: hintText,
+      alignLabelWithHint: alignLabelWithHint,
+      enabledBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.primary, width: 2),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.primary, width: 2.5),
+      ),
+      errorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.destructive),
+      ),
+      focusedErrorBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.destructive, width: 2),
       ),
     );

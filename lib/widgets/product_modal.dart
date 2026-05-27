@@ -45,55 +45,20 @@ class _ProductPopupOverlay extends StatefulWidget {
 
 class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
   int _quantity = 1;
-  late Product _current;
 
   static const double _popupWidth  = 240.0;
-  static const double _popupHeight = 420.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _current = widget.product;
-  }
-
-  // Strip "Ekologisk(a) " prefix to find the base name for matching.
-  String _baseName(String name) {
-    final lower = name.toLowerCase();
-    for (final prefix in ['ekologiska ', 'ekologisk ']) {
-      if (lower.startsWith(prefix)) return name.substring(prefix.length);
-    }
-    return name;
-  }
-
-  Product? _findVariant(List<Product> all, bool wantEco) {
-    final base = _baseName(_current.name).toLowerCase();
-    for (final p in all) {
-      if (p.isEcological == wantEco &&
-          _baseName(p.name).toLowerCase() == base) {
-        return p;
-      }
-    }
-    return null;
-  }
+  static const double _popupHeight = 360.0;
 
   void _addToCart() {
     context.read<ImatDataHandler>().shoppingCartAdd(
-      ShoppingItem(_current, amount: _quantity.toDouble()),
+      ShoppingItem(widget.product, amount: _quantity.toDouble()),
     );
     widget.onDismiss();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screen   = MediaQuery.of(context).size;
-    final products = context.read<ImatDataHandler>().products;
-
-    final standardProduct = _current.isEcological
-        ? _findVariant(products, false)
-        : _current;
-    final ekoProduct = _current.isEcological
-        ? _current
-        : _findVariant(products, true);
+    final screen = MediaQuery.of(context).size;
 
     // Centre popup on the card, then clamp to screen bounds
     double left = widget.cardOffset.dx + widget.cardSize.width  / 2 - _popupWidth  / 2;
@@ -101,9 +66,9 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
     left = left.clamp(8.0, screen.width  - _popupWidth  - 8);
     top  = top .clamp(8.0, screen.height - _popupHeight - 8);
 
-    final img = InternetHandler.cachedImage(_current.productId, fit: BoxFit.contain);
+    final img = InternetHandler.cachedImage(widget.product.productId, fit: BoxFit.contain);
     final priceStr =
-        '${_current.price.toStringAsFixed(_current.price.truncateToDouble() == _current.price ? 0 : 2)} kr/${_current.unit}';
+        '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}';
 
     return Stack(
       children: [
@@ -151,7 +116,7 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
 
                   // Name
                   Text(
-                    _current.name,
+                    widget.product.name,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -167,20 +132,6 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ── Standard / Eko toggle ──────────────────────────────────
-                  _VariantToggle(
-                    isEco:           _current.isEcological,
-                    hasStandard:     standardProduct != null,
-                    hasEko:          ekoProduct != null,
-                    onSelectStandard: standardProduct != null
-                        ? () => setState(() => _current = standardProduct)
-                        : null,
-                    onSelectEko: ekoProduct != null
-                        ? () => setState(() => _current = ekoProduct)
-                        : null,
                   ),
                   const SizedBox(height: 12),
 
@@ -232,102 +183,6 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─── Standard / Eko toggle ────────────────────────────────────────────────────
-
-class _VariantToggle extends StatelessWidget {
-  final bool isEco;
-  final bool hasStandard;
-  final bool hasEko;
-  final VoidCallback? onSelectStandard;
-  final VoidCallback? onSelectEko;
-
-  const _VariantToggle({
-    required this.isEco,
-    required this.hasStandard,
-    required this.hasEko,
-    required this.onSelectStandard,
-    required this.onSelectEko,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.muted,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          _ToggleBtn(
-            label: 'Standard',
-            selected: !isEco,
-            enabled: hasStandard,
-            onTap: onSelectStandard,
-            isLeft: true,
-          ),
-          _ToggleBtn(
-            label: 'Eko',
-            selected: isEco,
-            enabled: hasEko,
-            onTap: onSelectEko,
-            isLeft: false,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ToggleBtn extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback? onTap;
-  final bool isLeft;
-
-  const _ToggleBtn({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-    required this.isLeft,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.horizontal(
-      left:  isLeft  ? const Radius.circular(8) : Radius.zero,
-      right: !isLeft ? const Radius.circular(8) : Radius.zero,
-    );
-    return Expanded(
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: radius,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: selected
-                  ? AppColors.primaryForeground
-                  : enabled
-                      ? AppColors.foreground
-                      : AppColors.mutedForeground,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

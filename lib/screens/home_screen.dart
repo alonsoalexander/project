@@ -12,7 +12,7 @@ import '../widgets/product_modal.dart';
 const _dealPrices = {
   2:  19.0,
   7:  10.0,
-  6:  25.0,
+  6:  15.0,
   1:  14.0,
   15: 29.0,
   20: 18.0,
@@ -166,18 +166,21 @@ class _HeroSection extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxl),
                     ElevatedButton.icon(
                       onPressed: () => context.go('/products'),
-                      icon: const Icon(Icons.arrow_forward, size: 22),
+                      icon: const Icon(Icons.arrow_forward, size: 28),
                       label: const Text(
                         'Börja handla',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                       ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xxl,
-                          vertical: AppSpacing.lg,
+                          horizontal: 48,
+                          vertical: 20,
                         ),
-                        elevation: 8,
-                        shadowColor: Colors.black.withValues(alpha: 0.3),
+                        elevation: 18,
+                        shadowColor: AppColors.primary.withValues(alpha: 0.55),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                     ),
                   ],
@@ -239,7 +242,7 @@ class _DealCardState extends State<_DealCard> {
                     top: 6,
                     left: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDC2626),
                         borderRadius: BorderRadius.circular(4),
@@ -248,7 +251,7 @@ class _DealCardState extends State<_DealCard> {
                         'Kampanj',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -304,11 +307,11 @@ class _DealCardState extends State<_DealCard> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _open,
-                  icon: const Icon(Icons.add, size: 15),
+                  icon: const Icon(Icons.add, size: 15 ),
                   label: const Text('Välj'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

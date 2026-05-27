@@ -21,6 +21,7 @@ class ProductsScreen extends StatefulWidget {
 class _ProductsScreenState extends State<ProductsScreen> {
   // null = "Alla" (inga filter)
   String? _selectedGroup;
+  bool _showFavorites = false;
   late String _searchQuery;
   final _scrollController = ScrollController();
 
@@ -42,14 +43,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (widget.initialSearch != old.initialSearch) {
       setState(() {
         _searchQuery = widget.initialSearch ?? '';
-        if (_searchQuery.isNotEmpty) _selectedGroup = null;
+        if (_searchQuery.isNotEmpty) {
+          _selectedGroup = null;
+          _showFavorites = false;
+        }
       });
     }
   }
 
-  List<Product> _filter(List<Product> all) {
-    final groupCats = _selectedGroup != null ? kCategoryGroups[_selectedGroup] : null;
-    return all.where((p) {
+  List<Product> _filter(List<Product> all, List<Product> favorites) {
+    final pool = _showFavorites ? favorites : all;
+    final groupCats = (!_showFavorites && _selectedGroup != null)
+        ? kCategoryGroups[_selectedGroup]
+        : null;
+    return pool.where((p) {
       final catOk = groupCats == null || groupCats.contains(p.category);
       final searchOk =
           _searchQuery.isEmpty || p.name.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -74,7 +81,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       );
     }
 
-    final filtered = _filter(imat.selectProducts);
+    final filtered = _filter(imat.selectProducts, imat.favorites);
 
     // Only show groups that actually have products in the current assortment
     final availableGroups = kCategoryGroups.keys
@@ -109,13 +116,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: SizedBox(
                     width: double.infinity,
-                    child: _selectedGroup == null
+                    child: (_selectedGroup == null && !_showFavorites)
                         ? ElevatedButton(
-                            onPressed: () => setState(() => _selectedGroup = null),
+                            onPressed: () {
+                              setState(() {
+                                _selectedGroup = null;
+                                _showFavorites = false;
+                              });
+                              _scrollController.jumpTo(0);
+                            },
                             child: const Text('Alla'),
                           )
                         : OutlinedButton(
-                            onPressed: () => setState(() => _selectedGroup = null),
+                            onPressed: () {
+                              setState(() {
+                                _selectedGroup = null;
+                                _showFavorites = false;
+                              });
+                              _scrollController.jumpTo(0);
+                            },
                             child: const Text('Alla'),
                           ),
                   ),
@@ -123,21 +142,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                 // Grouped category buttons
                 ...availableGroups.map((group) {
-                  final active = _selectedGroup == group;
+                  final active = !_showFavorites && _selectedGroup == group;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: SizedBox(
                       width: double.infinity,
                       child: active
                           ? ElevatedButton(
-                              onPressed: () => setState(() => _selectedGroup = group),
+                              onPressed: () => setState(() {
+                                _selectedGroup = group;
+                                _showFavorites = false;
+                              }),
                               child: Text(group),
                             )
                           : OutlinedButton(
-                              onPressed: () => setState(() {
-                                _selectedGroup = group;
-                                _searchQuery = '';
-                              }),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedGroup = group;
+                                  _searchQuery = '';
+                                  _showFavorites = false;
+                                });
+                                _scrollController.jumpTo(0);
+                              },
                               style: OutlinedButton.styleFrom(
                                 alignment: Alignment.centerLeft,
                               ),
@@ -146,6 +172,40 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   );
                 }),
+
+                // Separator + Favourites button at the bottom
+                const SizedBox(height: AppSpacing.sm),
+                const Divider(),
+                const SizedBox(height: AppSpacing.sm),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _showFavorites
+                        ? ElevatedButton.icon(
+                            onPressed: () {
+                              setState(() => _showFavorites = true);
+                              _scrollController.jumpTo(0);
+                            },
+                            icon: const Icon(Icons.favorite, size: 14),
+                            label: const Text('Favoriter'),
+                          )
+                        : OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _showFavorites = true;
+                                _selectedGroup = null;
+                              });
+                              _scrollController.jumpTo(0);
+                            },
+                            icon: const Icon(Icons.favorite_border, size: 14),
+                            label: const Text('Favoriter'),
+                            style: OutlinedButton.styleFrom(
+                              alignment: Alignment.centerLeft,
+                            ),
+                          ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -175,23 +235,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_searchQuery.isNotEmpty) ...[
-                  Text.rich(
-                    TextSpan(
-                      text: 'Visar resultat för: ',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.mutedForeground),
-                      children: [
-                        TextSpan(
-                          text: '"$_searchQuery"',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.foreground,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Text(
+                    'Bästa resultat',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: AppSpacing.md),
                 ],
@@ -264,6 +310,8 @@ class _ProductCardState extends State<_ProductCard> {
 
   @override
   Widget build(BuildContext context) {
+    final imat = context.watch<ImatDataHandler>();
+    final isFav = imat.isFavorite(widget.product);
     final img = InternetHandler.cachedImage(widget.product.productId);
 
     return Card(
@@ -274,19 +322,42 @@ class _ProductCardState extends State<_ProductCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image
+            // Product image with favourite heart overlay
             Expanded(
               flex: 3,
-              child: SizedBox(
-                width: double.infinity,
-                child: img ??
-                    Container(
-                      color: AppColors.accent,
-                      child: Image.asset(
-                        'assets/images/placeholder.png',
-                        fit: BoxFit.cover,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  img ??
+                      Container(
+                        color: AppColors.accent,
+                        child: Image.asset(
+                          'assets/images/placeholder.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: GestureDetector(
+                      onTap: () => imat.toggleFavorite(widget.product),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav ? Colors.red : AppColors.mutedForeground,
+                          size: 15,
+                        ),
                       ),
                     ),
+                  ),
+                ],
               ),
             ),
 
@@ -349,8 +420,8 @@ class _ProductCardState extends State<_ProductCard> {
                   icon: const Icon(Icons.add, size: 15),
                   label: const Text('Välj'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

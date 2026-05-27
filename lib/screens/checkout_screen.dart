@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:imat/model/imat/customer.dart';
 import 'package:imat/model/imat_data_handler.dart';
@@ -264,7 +265,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     TextField(
                       controller: _birthdateCtrl,
-                      keyboardType: TextInputType.datetime,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_DateInputFormatter()],
                       decoration: const InputDecoration(hintText: 'ÅÅÅÅ-MM-DD'),
                     ),
                     const SizedBox(height: AppSpacing.lg),
@@ -667,6 +669,28 @@ class _DeliveryPicker extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         ElevatedButton(onPressed: onContinue, child: const Text('Fortsätt')),
       ],
+    );
+  }
+}
+
+// ─── Date input formatter (ÅÅÅÅ-MM-DD) ───────────────────────────────────────
+
+class _DateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final buf = StringBuffer();
+    for (int i = 0; i < digits.length && i < 8; i++) {
+      if (i == 4 || i == 6) buf.write('-');
+      buf.write(digits[i]);
+    }
+    final str = buf.toString();
+    return TextEditingValue(
+      text: str,
+      selection: TextSelection.collapsed(offset: str.length),
     );
   }
 }

@@ -27,10 +27,12 @@ class _AppScaffoldState extends State<AppScaffold> {
     super.dispose();
   }
 
-  void _handleSearchSubmit() {
+  void _handleSearchChanged() {
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
       context.go('/products?q=${Uri.encodeComponent(query)}');
+    } else if (GoRouterState.of(context).uri.path == '/products') {
+      context.go('/products');
     }
   }
 
@@ -46,7 +48,7 @@ class _AppScaffoldState extends State<AppScaffold> {
       backgroundColor: AppColors.background,
       appBar: AppHeader(
         searchController: _searchController,
-        onSearchSubmit: _handleSearchSubmit,
+        onSearchChanged: _handleSearchChanged,
       ),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

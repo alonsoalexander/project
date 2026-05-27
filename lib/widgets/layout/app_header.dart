@@ -17,12 +17,12 @@ const _navItems = [
 
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final TextEditingController searchController;
-  final VoidCallback onSearchSubmit;
+  final VoidCallback onSearchChanged;
 
   const AppHeader({
     super.key,
     required this.searchController,
-    required this.onSearchSubmit,
+    required this.onSearchChanged,
   });
 
   @override
@@ -75,7 +75,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   constraints: const BoxConstraints(maxWidth: 400),
                   child: TextField(
                     controller: searchController,
-                    onSubmitted: (_) => onSearchSubmit(),
+                    onChanged: (_) => onSearchChanged(),
+                    onSubmitted: (_) => onSearchChanged(),
                     decoration: InputDecoration(
                       hintText: 'Sök produkter...',
                       prefixIcon: const Icon(Icons.search, size: 18),
@@ -84,7 +85,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                               icon: const Icon(Icons.clear, size: 16),
                               onPressed: () {
                                 searchController.clear();
-                                onSearchSubmit();
+                                onSearchChanged();
                               },
                             )
                           : null,
@@ -191,9 +192,9 @@ class _NavLink extends StatelessWidget {
         foregroundColor:
             active ? AppColors.primaryForeground : AppColors.foreground,
         elevation: 2,
+        minimumSize: const Size(0, 48),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
-          vertical: 14,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.medium,
@@ -203,11 +204,11 @@ class _NavLink extends StatelessWidget {
     ? Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18),
+          Icon(icon, size: 20),
           const SizedBox(width: AppSpacing.xs),
           Text(label,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: active ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
@@ -216,7 +217,7 @@ class _NavLink extends StatelessWidget {
       :Text(
         label,
         style: TextStyle(
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: active ? FontWeight.w600 : FontWeight.w500,
         ),
       ),
