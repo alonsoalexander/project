@@ -7,18 +7,25 @@ import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
 
-/// Shows a compact quantity-picker popup positioned over the tapped product card.
-void showProductPopup(BuildContext context, Product product, RenderBox cardBox) {
+/// Shows a quantity-picker popup positioned over the tapped product card.
+/// [initialQuantity] pre-fills the stepper with the current cart amount.
+void showProductPopup(
+  BuildContext context,
+  Product product,
+  RenderBox cardBox, {
+  int initialQuantity = 1,
+}) {
   final cardOffset = cardBox.localToGlobal(Offset.zero);
   final cardSize   = cardBox.size;
 
   late OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => _ProductPopupOverlay(
-      product:    product,
-      cardOffset: cardOffset,
-      cardSize:   cardSize,
-      onDismiss:  () => entry.remove(),
+      product:         product,
+      cardOffset:      cardOffset,
+      cardSize:        cardSize,
+      onDismiss:       () => entry.remove(),
+      initialQuantity: initialQuantity,
     ),
   );
   Overlay.of(context).insert(entry);
@@ -31,12 +38,14 @@ class _ProductPopupOverlay extends StatefulWidget {
   final Offset       cardOffset;
   final Size         cardSize;
   final VoidCallback onDismiss;
+  final int          initialQuantity;
 
   const _ProductPopupOverlay({
     required this.product,
     required this.cardOffset,
     required this.cardSize,
     required this.onDismiss,
+    required this.initialQuantity,
   });
 
   @override
@@ -44,15 +53,28 @@ class _ProductPopupOverlay extends StatefulWidget {
 }
 
 class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
-  int _quantity = 1;
+  late int _quantity;
 
-  static const double _popupWidth  = 240.0;
-  static const double _popupHeight = 360.0;
+  static const double _popupWidth  = 260.0;
+  static const double _popupHeight = 420.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.initialQuantity;
+  }
 
   void _addToCart() {
-    context.read<ImatDataHandler>().shoppingCartAdd(
-      ShoppingItem(widget.product, amount: _quantity.toDouble()),
+    final imat = context.read<ImatDataHandler>();
+    // Remove existing entry (if any) so we SET quantity, not accumulate.
+    final existing = imat.cartItems.cast<ShoppingItem?>().firstWhere(
+      (i) => i?.product.productId == widget.product.productId,
+      orElse: () => null,
     );
+    if (existing != null) imat.shoppingCartRemove(existing);
+    if (_quantity > 0) {
+      imat.shoppingCartAdd(ShoppingItem(widget.product, amount: _quantity.toDouble()));
+    }
     widget.onDismiss();
   }
 
@@ -60,7 +82,6 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
 
-    // Centre popup on the card, then clamp to screen bounds
     double left = widget.cardOffset.dx + widget.cardSize.width  / 2 - _popupWidth  / 2;
     double top  = widget.cardOffset.dy + widget.cardSize.height / 2 - _popupHeight / 2;
     left = left.clamp(8.0, screen.width  - _popupWidth  - 8);
@@ -95,15 +116,21 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Close button
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: widget.onDismiss,
-                      child: const Icon(Icons.close, size: 18,
-                          color: AppColors.mutedForeground),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: widget.onDismiss,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.primaryForeground,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        textStyle: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      child: const Text('Stäng'),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 10),
 
                   // Image
                   SizedBox(
@@ -160,7 +187,7 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Add to cart
+                  // Add / update cart
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -173,7 +200,7 @@ class _ProductPopupOverlayState extends State<_ProductPopupOverlay> {
                       child: Text(
                         _quantity > 1
                             ? 'Lägg till $_quantity st'
-                            : 'Lägg i varukorgen',
+                            : 'Lägg till',
                       ),
                     ),
                   ),

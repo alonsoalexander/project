@@ -7,6 +7,7 @@ import 'package:imat/model/internet_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
+import '../widgets/product_modal.dart';
 
 // Product IDs and their sale prices for Veckans klipp
 const _dealPrices = {
@@ -82,7 +83,7 @@ class HomeScreen extends StatelessWidget {
                               crossAxisCount: crossAxisCount,
                               crossAxisSpacing: AppSpacing.md,
                               mainAxisSpacing: AppSpacing.md,
-                              childAspectRatio: 0.58,
+                              childAspectRatio: 0.62,
                             ),
                             itemCount: deals.length,
                             itemBuilder: (context, index) {
@@ -205,36 +206,29 @@ class _DealCard extends StatefulWidget {
 }
 
 class _DealCardState extends State<_DealCard> {
-  int _localQty = 1;
+  final _cardKey = GlobalKey();
 
-  void _decrement(ImatDataHandler imat, ShoppingItem? cartItem) {
-    if (cartItem != null) {
-      imat.shoppingCartUpdate(cartItem, delta: -1);
-    } else {
-      if (_localQty > 1) setState(() => _localQty--);
-    }
-  }
-
-  void _increment(ImatDataHandler imat, ShoppingItem? cartItem) {
-    if (cartItem != null) {
-      imat.shoppingCartUpdate(cartItem, delta: 1);
-    } else {
-      setState(() => _localQty++);
-    }
+  void _open() {
+    final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
+    final imat = context.read<ImatDataHandler>();
+    final cartItem = imat.cartItems.cast<ShoppingItem?>().firstWhere(
+      (i) => i?.product.productId == widget.product.productId,
+      orElse: () => null,
+    );
+    showProductPopup(context, widget.product, box,
+        initialQuantity: cartItem?.amount.round() ?? 1);
   }
 
   @override
   Widget build(BuildContext context) {
     final imat = context.watch<ImatDataHandler>();
     final img = InternetHandler.cachedImage(widget.product.productId);
-    final cartItem = imat.cartItems.cast<ShoppingItem?>().firstWhere(
-      (i) => i?.product.productId == widget.product.productId,
-      orElse: () => null,
+    final inCart = imat.cartItems.any(
+      (i) => i.product.productId == widget.product.productId,
     );
-    final inCart = cartItem != null;
-    final displayQty = inCart ? cartItem.amount.round() : _localQty;
 
     return Card(
+      key: _cardKey,
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,96 +308,38 @@ class _DealCardState extends State<_DealCard> {
             ),
           ),
 
-          // Stepper (always visible) + Välj/Tillagd button
+          // Add button
           Padding(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Quantity stepper
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StepBtn(
-                      icon: Icons.remove,
-                      onTap: () => _decrement(imat, cartItem),
-                    ),
-                    SizedBox(
-                      width: 34,
-                      child: Text(
-                        '$displayQty',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700),
+            child: SizedBox(
+              width: double.infinity,
+              child: inCart
+                  ? ElevatedButton.icon(
+                      onPressed: _open,
+                      icon: const Icon(Icons.check, size: 15),
+                      label: const Text('Tillagd'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        textStyle: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w600),
+                        backgroundColor: AppColors.muted,
+                        foregroundColor: AppColors.mutedForeground,
+                      ),
+                    )
+                  : ElevatedButton.icon(
+                      onPressed: _open,
+                      icon: const Icon(Icons.add, size: 15),
+                      label: const Text('Välj'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        textStyle: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    _StepBtn(
-                      icon: Icons.add,
-                      onTap: () => _increment(imat, cartItem),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                // Välj / Tillagd button
-                SizedBox(
-                  width: double.infinity,
-                  child: inCart
-                      ? ElevatedButton.icon(
-                          onPressed: null,
-                          icon: const Icon(Icons.check_circle, size: 15),
-                          label: const Text('Tillagd'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            textStyle: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w600),
-                            backgroundColor: AppColors.accent,
-                            foregroundColor: AppColors.primary,
-                            disabledBackgroundColor: AppColors.accent,
-                            disabledForegroundColor: AppColors.primary,
-                          ),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: () => imat.shoppingCartAdd(
-                              ShoppingItem(widget.product, amount: _localQty.toDouble())),
-                          icon: const Icon(Icons.add, size: 15),
-                          label: const Text('Välj'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 3),
-                            textStyle: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                ),
-              ],
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _StepBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _StepBtn({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size(28, 28),
-          padding: const EdgeInsets.all(0),
-          shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(6))),
-        ),
-        child: Icon(icon, size: 13),
       ),
     );
   }
