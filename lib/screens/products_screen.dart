@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:imat/config/category_config.dart';
 import 'package:imat/model/imat/product.dart';
+import 'package:imat/model/imat/shopping_item.dart';
 import 'package:imat/model/imat_data_handler.dart';
 import 'package:imat/model/internet_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/layout/app_footer.dart';
-import '../widgets/product_modal.dart';
 
 class ProductsScreen extends StatefulWidget {
   final String? initialSearch;
@@ -19,7 +19,6 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  // null = "Alla" (inga filter)
   String? _selectedGroup;
   bool _showFavorites = false;
   late String _searchQuery;
@@ -83,7 +82,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     final filtered = _filter(imat.selectProducts, imat.favorites);
 
-    // Only show groups that actually have products in the current assortment
     final availableGroups = kCategoryGroups.keys
         .where((group) => imat.products.any(
               (p) => kCategoryGroups[group]!.contains(p.category),
@@ -111,7 +109,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
 
-                // "Alla" button
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                   child: SizedBox(
@@ -140,7 +137,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
 
-                // Grouped category buttons
                 ...availableGroups.map((group) {
                   final active = !_showFavorites && _selectedGroup == group;
                   return Padding(
@@ -173,7 +169,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   );
                 }),
 
-                // Separator + Favourites button at the bottom
                 const SizedBox(height: AppSpacing.sm),
                 const Divider(),
                 const SizedBox(height: AppSpacing.sm),
@@ -231,59 +226,59 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 controller: _scrollController,
                 padding: const EdgeInsets.fromLTRB(
                     0, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_searchQuery.isNotEmpty) ...[
-                  Text(
-                    'Bästa resultat',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                ],
-
-                LayoutBuilder(builder: (context, constraints) {
-                  final cols = constraints.maxWidth > 700
-                      ? 4
-                      : constraints.maxWidth > 450
-                          ? 3
-                          : 2;
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: cols,
-                      crossAxisSpacing: AppSpacing.md,
-                      mainAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.55,
-                    ),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) => _ProductCard(
-                      product: filtered[index],
-                    ),
-                  );
-                }),
-
-                if (filtered.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xxxl),
-                    child: Center(
-                      child: Text(
-                        'Inga produkter hittades.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.mutedForeground,
-                            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_searchQuery.isNotEmpty) ...[
+                      Text(
+                        'Bästa resultat',
+                        style: Theme.of(context).textTheme.headlineMedium,
                       ),
-                    ),
-                  ),
-                const SizedBox(height: 300),
-                const AppFooter(),
-              ],
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+
+                    LayoutBuilder(builder: (context, constraints) {
+                      final cols = constraints.maxWidth > 700
+                          ? 4
+                          : constraints.maxWidth > 450
+                              ? 3
+                              : 2;
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: cols,
+                          crossAxisSpacing: AppSpacing.md,
+                          mainAxisSpacing: AppSpacing.md,
+                          childAspectRatio: 0.52,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) => _ProductCard(
+                          product: filtered[index],
+                        ),
+                      );
+                    }),
+
+                    if (filtered.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xxxl),
+                        child: Center(
+                          child: Text(
+                            'Inga produkter hittades.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.mutedForeground,
+                                ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 300),
+                    const AppFooter(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      ),
-    ),
       ],
     );
   }
@@ -301,11 +296,22 @@ class _ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<_ProductCard> {
-  final _cardKey = GlobalKey();
+  int _localQty = 1;
 
-  void _open() {
-    final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
-    showProductPopup(context, widget.product, box);
+  void _decrement(ImatDataHandler imat, ShoppingItem? cartItem) {
+    if (cartItem != null) {
+      imat.shoppingCartUpdate(cartItem, delta: -1);
+    } else {
+      if (_localQty > 1) setState(() => _localQty--);
+    }
+  }
+
+  void _increment(ImatDataHandler imat, ShoppingItem? cartItem) {
+    if (cartItem != null) {
+      imat.shoppingCartUpdate(cartItem, delta: 1);
+    } else {
+      setState(() => _localQty++);
+    }
   }
 
   @override
@@ -313,123 +319,196 @@ class _ProductCardState extends State<_ProductCard> {
     final imat = context.watch<ImatDataHandler>();
     final isFav = imat.isFavorite(widget.product);
     final img = InternetHandler.cachedImage(widget.product.productId);
+    final cartItem = imat.cartItems.cast<ShoppingItem?>().firstWhere(
+      (i) => i?.product.productId == widget.product.productId,
+      orElse: () => null,
+    );
+    final inCart = cartItem != null;
+    final displayQty = inCart ? cartItem.amount.round() : _localQty;
 
     return Card(
-      key: _cardKey,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _open,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product image with favourite heart overlay
-            Expanded(
-              flex: 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  img ??
-                      Container(
-                        color: AppColors.accent,
-                        child: Image.asset(
-                          'assets/images/placeholder.png',
-                          fit: BoxFit.cover,
-                        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Product image with favourite heart overlay
+          Expanded(
+            flex: 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                img ??
+                    Container(
+                      color: AppColors.accent,
+                      child: Image.asset(
+                        'assets/images/placeholder.png',
+                        fit: BoxFit.cover,
                       ),
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: GestureDetector(
-                      onTap: () => imat.toggleFavorite(widget.product),
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isFav ? Icons.favorite : Icons.favorite_border,
-                          color: isFav ? Colors.red : AppColors.mutedForeground,
-                          size: 15,
-                        ),
+                    ),
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: GestureDetector(
+                    onTap: () => imat.toggleFavorite(widget.product),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        color: isFav ? Colors.red : AppColors.mutedForeground,
+                        size: 15,
                       ),
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+
+          // Info
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.product.name,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (widget.product.isEcological)
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: const Text(
+                        'EKO',
+                        style: TextStyle(
+                          color: AppColors.primaryForeground,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
+          ),
 
-            // Info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Stepper (always visible) + Välj/Tillagd button
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Quantity stepper
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      widget.product.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    _StepBtn(
+                      icon: Icons.remove,
+                      onTap: () => _decrement(imat, cartItem),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    if (widget.product.isEcological)
-                      Container(
-                        margin: const EdgeInsets.only(top: 3),
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text(
-                          'EKO',
-                          style: TextStyle(
-                            color: AppColors.primaryForeground,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '$displayQty',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
                       ),
+                    ),
+                    _StepBtn(
+                      icon: Icons.add,
+                      onTap: () => _increment(imat, cartItem),
+                    ),
                   ],
                 ),
-              ),
-            ),
-
-            // Add button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _open,
-                  icon: const Icon(Icons.add, size: 15),
-                  label: const Text('Välj'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
+                const SizedBox(height: 5),
+                // Välj / Tillagd button
+                SizedBox(
+                  width: double.infinity,
+                  child: inCart
+                      ? ElevatedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.check_circle, size: 15),
+                          label: const Text('Tillagd'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            textStyle: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600),
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: AppColors.primary,
+                            disabledBackgroundColor: AppColors.accent,
+                            disabledForegroundColor: AppColors.primary,
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () => imat.shoppingCartAdd(
+                              ShoppingItem(widget.product, amount: _localQty.toDouble())),
+                          icon: const Icon(Icons.add, size: 15),
+                          label: const Text('Välj'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            textStyle: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600),
+                          ),
+                        ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _StepBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _StepBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(28, 28),
+          padding: const EdgeInsets.all(0),
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(6))),
+        ),
+        child: Icon(icon, size: 13),
+      ),
+    );
+  }
+}

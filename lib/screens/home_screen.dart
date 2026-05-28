@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:imat/model/imat/product.dart';
+import 'package:imat/model/imat/shopping_item.dart';
 import 'package:imat/model/imat_data_handler.dart';
 import 'package:imat/model/internet_handler.dart';
 import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
-import '../widgets/product_modal.dart';
 
 // Product IDs and their sale prices for Veckans klipp
 const _dealPrices = {
@@ -82,7 +82,7 @@ class HomeScreen extends StatelessWidget {
                               crossAxisCount: crossAxisCount,
                               crossAxisSpacing: AppSpacing.md,
                               mainAxisSpacing: AppSpacing.md,
-                              childAspectRatio: 0.62,
+                              childAspectRatio: 0.58,
                             ),
                             itemCount: deals.length,
                             itemBuilder: (context, index) {
@@ -205,119 +205,205 @@ class _DealCard extends StatefulWidget {
 }
 
 class _DealCardState extends State<_DealCard> {
-  final _cardKey = GlobalKey();
+  int _localQty = 1;
 
-  void _open() {
-    final box = _cardKey.currentContext!.findRenderObject() as RenderBox;
-    showProductPopup(context, widget.product, box);
+  void _decrement(ImatDataHandler imat, ShoppingItem? cartItem) {
+    if (cartItem != null) {
+      imat.shoppingCartUpdate(cartItem, delta: -1);
+    } else {
+      if (_localQty > 1) setState(() => _localQty--);
+    }
+  }
+
+  void _increment(ImatDataHandler imat, ShoppingItem? cartItem) {
+    if (cartItem != null) {
+      imat.shoppingCartUpdate(cartItem, delta: 1);
+    } else {
+      setState(() => _localQty++);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final imat = context.watch<ImatDataHandler>();
     final img = InternetHandler.cachedImage(widget.product.productId);
+    final cartItem = imat.cartItems.cast<ShoppingItem?>().firstWhere(
+      (i) => i?.product.productId == widget.product.productId,
+      orElse: () => null,
+    );
+    final inCart = cartItem != null;
+    final displayQty = inCart ? cartItem.amount.round() : _localQty;
 
     return Card(
-      key: _cardKey,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _open,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product image
-            Expanded(
-              flex: 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  img ??
-                      Container(
-                        color: AppColors.accent,
-                        child: Image.asset(
-                          'assets/images/placeholder.png',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDC2626),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Kampanj',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Product image
+          Expanded(
+            flex: 3,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                img ??
+                    Container(
+                      color: AppColors.accent,
+                      child: Image.asset(
+                        'assets/images/placeholder.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDC2626),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Kampanj',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Info
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.product.name,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: AppColors.mutedForeground,
+                        ),
+                  ),
+                  Text(
+                    '${widget.salePrice.toStringAsFixed(widget.salePrice.truncateToDouble() == widget.salePrice ? 0 : 2)} kr/${widget.product.unit}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFDC2626),
+                        ),
                   ),
                 ],
               ),
             ),
+          ),
 
-            // Info
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // Stepper (always visible) + Välj/Tillagd button
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Quantity stepper
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      widget.product.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    _StepBtn(
+                      icon: Icons.remove,
+                      onTap: () => _decrement(imat, cartItem),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${widget.product.price.toStringAsFixed(widget.product.price.truncateToDouble() == widget.product.price ? 0 : 2)} kr/${widget.product.unit}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            decoration: TextDecoration.lineThrough,
-                            color: AppColors.mutedForeground,
-                          ),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '$displayQty',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
                     ),
-                    Text(
-                      '${widget.salePrice.toStringAsFixed(widget.salePrice.truncateToDouble() == widget.salePrice ? 0 : 2)} kr/${widget.product.unit}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFFDC2626),
-                          ),
+                    _StepBtn(
+                      icon: Icons.add,
+                      onTap: () => _increment(imat, cartItem),
                     ),
                   ],
                 ),
-              ),
-            ),
-
-            // Add button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _open,
-                  icon: const Icon(Icons.add, size: 15 ),
-                  label: const Text('Välj'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
+                const SizedBox(height: 5),
+                // Välj / Tillagd button
+                SizedBox(
+                  width: double.infinity,
+                  child: inCart
+                      ? ElevatedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(Icons.check_circle, size: 15),
+                          label: const Text('Tillagd'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            textStyle: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600),
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: AppColors.primary,
+                            disabledBackgroundColor: AppColors.accent,
+                            disabledForegroundColor: AppColors.primary,
+                          ),
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: () => imat.shoppingCartAdd(
+                              ShoppingItem(widget.product, amount: _localQty.toDouble())),
+                          icon: const Icon(Icons.add, size: 15),
+                          label: const Text('Välj'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            textStyle: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w600),
+                          ),
+                        ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _StepBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(28, 28),
+          padding: const EdgeInsets.all(0),
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(6))),
         ),
+        child: Icon(icon, size: 13),
       ),
     );
   }

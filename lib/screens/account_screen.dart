@@ -17,123 +17,130 @@ class AccountScreen extends StatelessWidget {
     final totalSpent = orders.fold(0.0, (s, o) => s + o.getTotal());
     final hasCustomer = customer.firstName.isNotEmpty || customer.email.isNotEmpty;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Mitt konto', style: Theme.of(context).textTheme.displayMedium),
-              const SizedBox(height: AppSpacing.xl),
-
-              // ── Top section: info + stats ──────────────────────────────────
-              LayoutBuilder(builder: (context, constraints) {
-                final twoCol = constraints.maxWidth > 600;
-
-                final infoCard = Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Mina uppgifter',
-                            style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: AppSpacing.lg),
-                        if (hasCustomer) ...[
-                          if (customer.fullName.isNotEmpty)
-                            _infoRow(context, 'Namn', customer.fullName),
-                          if (customer.email.isNotEmpty)
-                            _infoRow(context, 'E-post', customer.email),
-                          if (customer.phoneNumber.isNotEmpty)
-                            _infoRow(context, 'Telefon', customer.phoneNumber),
-                          if (customer.address.isNotEmpty)
-                            _infoRow(context, 'Adress', customer.address),
-                          if (customer.postCode.isNotEmpty || customer.postAddress.isNotEmpty)
-                            _infoRow(context, 'Ort',
-                                '${customer.postCode} ${customer.postAddress}'.trim()),
-                        ] else
-                          Text(
-                            'Inga uppgifter sparade än',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: AppColors.mutedForeground),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-
-                final statsCard = Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Statistik',
-                            style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: AppSpacing.lg),
-                        _statRow(context, 'Totalt antal köp:', '${orders.length}'),
-                        const SizedBox(height: AppSpacing.md),
-                        _statRow(context, 'Total handlad summa:',
-                            '${totalSpent.toStringAsFixed(0)} kr'),
-                      ],
-                    ),
-                  ),
-                );
-
-                if (twoCol) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: infoCard),
-                      const SizedBox(width: AppSpacing.lg),
-                      Expanded(child: statsCard),
-                    ],
-                  );
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    infoCard,
-                    const SizedBox(height: AppSpacing.lg),
-                    statsCard,
-                  ],
-                );
-              }),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              // ── Order history ──────────────────────────────────────────────
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Köphistorik',
-                          style: Theme.of(context).textTheme.headlineMedium),
-                      const SizedBox(height: AppSpacing.lg),
-                      if (orders.isEmpty)
-                        Text(
-                          'Inga tidigare beställningar',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: AppColors.mutedForeground),
-                        )
-                      else
-                        ...orders.map((order) => _OrderCard(order: order)),
-                    ],
-                  ),
-                ),
+    final infoCard = Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Mina uppgifter',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: AppSpacing.lg),
+            if (hasCustomer) ...[
+              if (customer.fullName.isNotEmpty)
+                _infoRow(context, 'Namn', customer.fullName),
+              if (customer.email.isNotEmpty)
+                _infoRow(context, 'E-post', customer.email),
+              if (customer.phoneNumber.isNotEmpty)
+                _infoRow(context, 'Telefon', customer.phoneNumber),
+              if (customer.address.isNotEmpty)
+                _infoRow(context, 'Adress', customer.address),
+              if (customer.postCode.isNotEmpty || customer.postAddress.isNotEmpty)
+                _infoRow(context, 'Ort',
+                    '${customer.postCode} ${customer.postAddress}'.trim()),
+            ] else
+              Text(
+                'Inga uppgifter sparade än',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.mutedForeground),
               ),
-            ],
-          ),
+          ],
         ),
+      ),
+    );
+
+    final statsCard = Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Statistik',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: AppSpacing.lg),
+            _statRow(context, 'Totalt antal köp:', '${orders.length}'),
+            const SizedBox(height: AppSpacing.md),
+            _statRow(context, 'Total handlad summa:',
+                '${totalSpent.toStringAsFixed(0)} kr'),
+          ],
+        ),
+      ),
+    );
+
+    final historyCard = Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Köphistorik',
+                style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: AppSpacing.lg),
+            if (orders.isEmpty)
+              Text(
+                'Inga tidigare beställningar',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: AppColors.mutedForeground),
+              )
+            else
+              ...orders.map((order) => _OrderCard(order: order)),
+          ],
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Mitt konto', style: Theme.of(context).textTheme.displayMedium),
+          const SizedBox(height: AppSpacing.xl),
+
+          // ── Two-column dashboard layout ────────────────────────────────────
+          LayoutBuilder(builder: (context, constraints) {
+            if (constraints.maxWidth > 600) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: Köphistorik (narrower)
+                  Expanded(
+                    flex: 5,
+                    child: historyCard,
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
+                  // Right: Mina uppgifter + Statistik stacked
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        infoCard,
+                        const SizedBox(height: AppSpacing.lg),
+                        statsCard,
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                historyCard,
+                const SizedBox(height: AppSpacing.lg),
+                infoCard,
+                const SizedBox(height: AppSpacing.lg),
+                statsCard,
+              ],
+            );
+          }),
+        ],
       ),
     );
   }
