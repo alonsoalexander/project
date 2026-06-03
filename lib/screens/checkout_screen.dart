@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:imat/model/imat/customer.dart';
 import 'package:imat/model/imat_data_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_theme.dart';
 
@@ -23,10 +23,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _postCodeCtrl  = TextEditingController();
   final _cityCtrl      = TextEditingController();
 
-  // Step 2 – Birthdate
-  final _birthdateCtrl = TextEditingController();
-
-  // Step 3 – Personal info + card
+  // Step 2 – Personal info + card
   final _firstNameCtrl  = TextEditingController();
   final _lastNameCtrl   = TextEditingController();
   final _emailCtrl      = TextEditingController();
@@ -34,8 +31,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _cardNumberCtrl = TextEditingController();
   final _expiryCtrl     = TextEditingController();
   final _cvcCtrl        = TextEditingController();
-
-  // Step 4 – Delivery
+  // Step 3 – Delivery
   DateTime? _deliveryDate;
   String?   _deliveryTimeSlot;
 
@@ -44,6 +40,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     '12:00 – 17:00',
     '17:00 – 21:00',
   ];
+
+  static const _prefCardNumber = 'card_number';
+  static const _prefCardExpiry = 'card_expiry';
+  static const _prefCardCvc    = 'card_cvc';
 
   @override
   void initState() {
@@ -56,12 +56,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _addressCtrl.text   = c.address;
     _postCodeCtrl.text  = c.postCode;
     _cityCtrl.text      = c.postAddress;
+    _loadSavedCard();
+  }
+
+  Future<void> _loadSavedCard() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedNumber = prefs.getString(_prefCardNumber) ?? '';
+    final savedExpiry = prefs.getString(_prefCardExpiry) ?? '';
+    final savedCvc    = prefs.getString(_prefCardCvc)    ?? '';
+    if (savedNumber.isNotEmpty) {
+      setState(() {
+        _cardNumberCtrl.text = savedNumber;
+        _expiryCtrl.text     = savedExpiry;
+        _cvcCtrl.text        = savedCvc;
+      });
+    }
+  }
+
+  Future<void> _persistCard() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefCardNumber, _cardNumberCtrl.text.trim());
+    await prefs.setString(_prefCardExpiry, _expiryCtrl.text.trim());
+    await prefs.setString(_prefCardCvc,    _cvcCtrl.text.trim());
   }
 
   @override
   void dispose() {
     for (final c in [
-      _addressCtrl, _postCodeCtrl, _cityCtrl, _birthdateCtrl,
+      _addressCtrl, _postCodeCtrl, _cityCtrl,
       _firstNameCtrl, _lastNameCtrl, _emailCtrl, _phoneCtrl,
       _cardNumberCtrl, _expiryCtrl, _cvcCtrl,
     ]) {
@@ -86,15 +108,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _currentStep = 2);
   }
 
-  void _step2() {
-    if (_birthdateCtrl.text.trim().isEmpty) {
-      _showError('Vänligen fyll i födelsedatum');
-      return;
-    }
-    setState(() => _currentStep = 3);
-  }
-
-  void _step3() {
+  Future<void> _step2() async {
     if (_firstNameCtrl.text.trim().isEmpty || _lastNameCtrl.text.trim().isEmpty) {
       _showError('Vänligen fyll i namn');
       return;
@@ -111,10 +125,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _showError('Vänligen fyll i CVC');
       return;
     }
-    setState(() => _currentStep = 4);
+    await _persistCard();
+    setState(() => _currentStep = 3);
   }
 
-  void _step4() {
+  void _step3() {
     if (_deliveryDate == null) {
       _showError('Vänligen välj ett leveransdatum');
       return;
@@ -123,10 +138,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _showError('Vänligen välj en leveranstid');
       return;
     }
-    setState(() => _currentStep = 5);
+    setState(() => _currentStep = 4);
   }
 
-  Future<void> _step5() async {
+  Future<void> _step4() async {
     final imat = context.read<ImatDataHandler>();
     imat.setCustomer(Customer(
       _firstNameCtrl.text.trim(),
@@ -141,7 +156,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await imat.placeOrder();
     if (!mounted) return;
     setState(() {
-      _currentStep = 6;
+      _currentStep = 5;
       _orderPlaced = true;
     });
   }
@@ -251,38 +266,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               const SizedBox(height: AppSpacing.md),
 
-              // ── Steg 2: Födelsedatum ────────────────────────────────────────
+              // ── Steg 2: Dina uppgifter + kort ───────────────────────────────
               _Step(
                 number: 2,
-                title: 'Födelsedatum',
-                current: _currentStep,
-                onEdit: () => setState(() => _currentStep = 2),
-                summary: _birthdateCtrl.text,
-                content: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _label('Ditt födelsedatum'),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextField(
-                      controller: _birthdateCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [_DateInputFormatter()],
-                      decoration: const InputDecoration(hintText: 'ÅÅÅÅ-MM-DD'),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(onPressed: _step2, child: const Text('Fortsätt')),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.md),
-
-              // ── Steg 3: Dina uppgifter + kort ───────────────────────────────
-              _Step(
-                number: 3,
                 title: 'Dina uppgifter',
                 current: _currentStep,
-                onEdit: () => setState(() => _currentStep = 3),
+                onEdit: () => setState(() => _currentStep = 2),
                 summary: '${_firstNameCtrl.text} ${_lastNameCtrl.text}'.trim(),
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,19 +369,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(onPressed: _step3, child: const Text('Fortsätt')),
+                    ElevatedButton(onPressed: _step2, child: const Text('Fortsätt')),
                   ],
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              // ── Steg 4: Leverans ────────────────────────────────────────────
+              // ── Steg 3: Leverans ────────────────────────────────────────────
               _Step(
-                number: 4,
+                number: 3,
                 title: 'Leverans',
                 current: _currentStep,
-                onEdit: () => setState(() => _currentStep = 4),
+                onEdit: () => setState(() => _currentStep = 3),
                 summary: _deliverySummary,
                 content: _DeliveryPicker(
                   selectedDate: _deliveryDate,
@@ -400,18 +389,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   timeSlots: _timeSlots,
                   onDateSelected: (d) => setState(() => _deliveryDate = d),
                   onSlotSelected: (s) => setState(() => _deliveryTimeSlot = s),
-                  onContinue: _step4,
+                  onContinue: _step3,
                 ),
               ),
 
               const SizedBox(height: AppSpacing.md),
 
-              // ── Steg 5: Bekräfta beställning ────────────────────────────────
+              // ── Steg 4: Bekräfta beställning ────────────────────────────────
               _Step(
-                number: 5,
+                number: 4,
                 title: 'Bekräfta beställning',
                 current: _currentStep,
-                onEdit: () => setState(() => _currentStep = 5),
+                onEdit: () => setState(() => _currentStep = 4),
                 summary: '',
                 content: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,7 +460,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _step5,
+                        onPressed: _step4,
                         child: const Text('Genomför beställning'),
                       ),
                     ),
@@ -480,7 +469,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
 
               // ── Success ─────────────────────────────────────────────────────
-              if (_currentStep == 6) ...[
+              if (_currentStep == 5) ...[
                 const SizedBox(height: AppSpacing.md),
                 Card(
                   child: Padding(
@@ -669,28 +658,6 @@ class _DeliveryPicker extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         ElevatedButton(onPressed: onContinue, child: const Text('Fortsätt')),
       ],
-    );
-  }
-}
-
-// ─── Date input formatter (ÅÅÅÅ-MM-DD) ───────────────────────────────────────
-
-class _DateInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final buf = StringBuffer();
-    for (int i = 0; i < digits.length && i < 8; i++) {
-      if (i == 4 || i == 6) buf.write('-');
-      buf.write(digits[i]);
-    }
-    final str = buf.toString();
-    return TextEditingValue(
-      text: str,
-      selection: TextSelection.collapsed(offset: str.length),
     );
   }
 }
